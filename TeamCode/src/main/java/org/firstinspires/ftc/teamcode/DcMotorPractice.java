@@ -18,7 +18,7 @@ public class DcMotorPractice extends OpMode {
     public void loop() {
         double motorSpeed = gamepad1.left_stick_y;
         bench.setMotorSpeed(motorSpeed);
-        telemetry.addData("Ticks per Revs", bench.getTicksPerRev());
+        telemetry.addData("Ticks per Revolutions", bench.getTicksPerRev());
         telemetry.addData("current pos", bench.currentPosition());
         telemetry.addData("Motor Revs", bench.getMotorRevs());
     }
