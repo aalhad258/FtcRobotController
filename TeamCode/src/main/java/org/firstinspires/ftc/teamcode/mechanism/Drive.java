@@ -4,14 +4,13 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-public class InitDrive {
-    public DcMotor lfMotor;
-    public DcMotor lbMotor;
-    public DcMotor rfMotor;
-    public DcMotor rbMotor;
+public class Drive {
+    private DcMotor lfMotor;
+    private DcMotor lbMotor;
+    private DcMotor rfMotor;
+    private DcMotor rbMotor;
 
-    public void init(HardwareMap hwMap) {
-        // DC motor
+    public Drive(HardwareMap hwMap) {
         lfMotor = hwMap.get(DcMotor.class, "leftFrontMotor");
         lbMotor = hwMap.get(DcMotor.class, "leftBackMotor");
         rfMotor = hwMap.get(DcMotor.class, "rightFrontMotor");
@@ -28,5 +27,31 @@ public class InitDrive {
         lbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         rfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         rbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+    }
+
+    public void setPower(double axial, double lateral, double yaw) {
+        // accepts values from -1.0 to 0.1
+        double max;
+
+        double lfPower = axial + lateral + yaw;
+        double lbPower = axial - lateral + yaw;
+        double rfPower = axial - lateral - yaw;
+        double rbPower = axial + lateral - yaw;
+
+        max = Math.max(Math.abs(lfPower), Math.abs(rfPower));
+        max = Math.max(max, Math.abs(lbPower));
+        max = Math.max(max, Math.abs(rbPower));
+
+        if (max > 1.0) {
+            lfPower /= max;
+            rfPower /= max;
+            lbPower /= max;
+            rbPower /= max;
+        }
+
+        lfMotor.setPower(lfPower);
+        lbMotor.setPower(lbPower);
+        rfMotor.setPower(rfPower);
+        rbMotor.setPower(rbPower);
     }
 }
