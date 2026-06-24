@@ -5,10 +5,9 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.teamcode.mechanism.Drive;
 
 public class Robot {
-    public Drive drive;
+    public Drive drive = new Drive();
 
-    public Robot(HardwareMap hwMap) {
-        drive = new Drive(hwMap);
-
+    public void init(HardwareMap hwMap) {
+        drive.init(hwMap);
     }
 }

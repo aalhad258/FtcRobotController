@@ -1,19 +1,18 @@
 package org.firstinspires.ftc.teamcode.mechanism;
 
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-public class DcMotorTest {
-    private DcMotor motor;
+public class DcMotor {
+    private com.qualcomm.robotcore.hardware.DcMotor motor;
     private double ticksPerRev;
 
     public void init(HardwareMap hwMap) {
         // DC motor
-        motor = hwMap.get(DcMotor.class, "motor");
-        motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motor = hwMap.get(com.qualcomm.robotcore.hardware.DcMotor.class, "motor");
+        motor.setMode(com.qualcomm.robotcore.hardware.DcMotor.RunMode.RUN_USING_ENCODER);
         ticksPerRev = motor.getMotorType().getTicksPerRev();
-        motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        motor.setZeroPowerBehavior(com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE);
         motor.setDirection(DcMotorSimple.Direction.REVERSE);
     }
 

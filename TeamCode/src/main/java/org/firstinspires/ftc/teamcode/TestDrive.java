@@ -7,12 +7,10 @@ import org.firstinspires.ftc.teamcode.mechanism.Drive;
 
 @TeleOp
 public class TestDrive extends OpMode {
-    Robot robot;
-    Drive drive;
+    Drive drive = new Drive();;
     @Override
     public void init() {
-        robot = new Robot(hardwareMap);
-        drive = robot.drive;
+        drive.init(hardwareMap);
     }
 
     @Override

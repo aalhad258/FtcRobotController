@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.mechanism.RobotIMU;
 
-public class ImuPractice extends OpMode{
+public class TestRobotIMU extends OpMode{
     RobotIMU Imu1 = new RobotIMU();
 
     private double Yaw;

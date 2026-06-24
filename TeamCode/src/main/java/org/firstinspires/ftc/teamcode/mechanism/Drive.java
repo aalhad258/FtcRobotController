@@ -10,7 +10,7 @@ public class Drive {
     private DcMotor rfMotor;
     private DcMotor rbMotor;
 
-    public Drive(HardwareMap hwMap) {
+    public void init(HardwareMap hwMap) {
         lfMotor = hwMap.get(DcMotor.class, "leftFrontMotor");
         lbMotor = hwMap.get(DcMotor.class, "leftBackMotor");
         rfMotor = hwMap.get(DcMotor.class, "rightFrontMotor");
