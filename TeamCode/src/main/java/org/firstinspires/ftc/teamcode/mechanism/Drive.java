@@ -29,7 +29,7 @@ public class Drive {
         rbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
     }
 
-    public void setPower(double axial, double lateral, double yaw) {
+    public void setPower(double axial, double lateral, double yaw, double speed) {
         // accepts values from -1.0 to 0.1
         double max;
 
@@ -49,9 +49,9 @@ public class Drive {
             rbPower /= max;
         }
 
-        lfMotor.setPower(lfPower);
-        lbMotor.setPower(lbPower);
-        rfMotor.setPower(rfPower);
-        rbMotor.setPower(rbPower);
+        lfMotor.setPower(lfPower*speed);
+        lbMotor.setPower(lbPower*speed);
+        rfMotor.setPower(rfPower*speed);
+        rbMotor.setPower(rbPower*speed);
     }
 }
