@@ -1,18 +1,25 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
+import org.firstinspires.ftc.teamcode.mechanism.Blob;
+
+import java.util.ArrayList;
+import java.util.List;
+
 @Autonomous
-public class LimeLightTest1 extends OpMode {
+public class LimeLightBasic extends OpMode {
     private Limelight3A limelight3A;
+    private List<Blob> blobResults;
     @Override
     public void init() {
         limelight3A= hardwareMap.get(Limelight3A.class, "limelight");
         limelight3A.pipelineSwitch(9);
-
+        blobResults = new ArrayList<>();
     }
 
     @Override
@@ -23,12 +30,16 @@ public class LimeLightTest1 extends OpMode {
     @Override
     public void loop() {
 
-
         LLResult llResult = limelight3A.getLatestResult();
         if (llResult != null && llResult.isValid()) {
-            telemetry.addData("Target X offset", llResult.getTx());
-            telemetry.addData("Target Y offset", llResult.getTy());
-            telemetry.addData("Target Area offset", llResult.getTa());
+            List<LLResultTypes.ColorResult> blobs = llResult.getColorResults();
+            for (LLResultTypes.ColorResult blob : blobs) {
+                blobResults.add(new Blob(
+                        blob.getTargetXDegrees(),
+                        blob.getTargetYDegrees(),
+                        blob.getTargetArea()
+                ));
+            }
 
         }
 
