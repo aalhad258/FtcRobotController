@@ -19,5 +19,9 @@ public class TestDrive extends OpMode {
         double lateral = gamepad1.left_stick_x;
         double yaw = gamepad1.right_stick_x;
         drive.setPower(axial, lateral, yaw);
+        telemetry.addData("axial", axial);
+        telemetry.addData("lateral", lateral);
+        telemetry.addData("yaw", yaw);
+
     }
 }

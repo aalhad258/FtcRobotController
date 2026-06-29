@@ -25,7 +25,7 @@ public class LimeLightTest1 extends OpMode {
 
 
         LLResult llResult = limelight3A.getLatestResult();
-        if (llResult != null) {
+        if (llResult != null && llResult.isValid()) {
             telemetry.addData("Target X offset", llResult.getTx());
             telemetry.addData("Target Y offset", llResult.getTy());
             telemetry.addData("Target Area offset", llResult.getTa());

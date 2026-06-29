@@ -15,16 +15,16 @@ public class Drive {
         lbMotor = hwMap.get(DcMotor.class, "leftBackMotor");
         rfMotor = hwMap.get(DcMotor.class, "rightFrontMotor");
         rbMotor = hwMap.get(DcMotor.class, "rightBackMotor");
-        lfMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        lbMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rfMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rbMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        lfMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        lbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rfMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         lfMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         lbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rfMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        lfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        lbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        lfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        lbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         rfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         rbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
     }
@@ -33,10 +33,10 @@ public class Drive {
         // accepts values from -1.0 to 0.1
         double max;
 
-        double lfPower = axial + lateral + yaw;
-        double lbPower = axial - lateral + yaw;
-        double rfPower = axial - lateral - yaw;
-        double rbPower = axial + lateral - yaw;
+        double lfPower = -axial + lateral - yaw;
+        double lbPower = -axial - lateral - yaw;
+        double rfPower = -axial - lateral + yaw;
+        double rbPower = -axial + lateral + yaw;
 
         max = Math.max(Math.abs(lfPower), Math.abs(rfPower));
         max = Math.max(max, Math.abs(lbPower));
