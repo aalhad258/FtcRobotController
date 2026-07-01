@@ -153,6 +153,7 @@ public class LimeLightBasic extends OpMode {
 
         else if (state == State.DRIVE) {
             Blob blob = blobResults.get(maxIndex);
+            distance = 1/Math.sqrt(blob.ta);
             double headingToBlob = Math.toRadians(blob.tx);
             double relX = distance * Math.cos(headingToBlob);
             double relY = distance * Math.sin(headingToBlob);
