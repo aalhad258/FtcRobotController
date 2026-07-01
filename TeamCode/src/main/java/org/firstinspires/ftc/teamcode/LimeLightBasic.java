@@ -27,6 +27,8 @@ public class LimeLightBasic extends OpMode {
     private enum State {
         ROTATE,
         SAMPLE,
+        TURN,
+        DRIVE,
         DONE
     }
 
@@ -39,6 +41,9 @@ public class LimeLightBasic extends OpMode {
 
     private double lastError = 0;
     private double yaw = 0;
+    int maxIndex;
+    double distance;
+    private List<Double> scores;
 
     @Override
     public void init() {
@@ -52,6 +57,7 @@ public class LimeLightBasic extends OpMode {
         imu.initialize(new IMU.Parameters(revHubOrientationOnRobot));
         state = State.ROTATE;
         targetAngle = 30;
+        scores = new ArrayList<>();
     }
 
     @Override
@@ -65,7 +71,7 @@ public class LimeLightBasic extends OpMode {
         if (state == State.ROTATE) {
             yaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             double error = AngleUnit.normalizeDegrees(targetAngle - yaw);
-            // ----- PD -----
+            // ----- PD ----- TO BE TUNED
             double derivative = error - lastError;
             double power = (kP * error) + (kD * derivative);
             lastError = error;
@@ -102,14 +108,68 @@ public class LimeLightBasic extends OpMode {
                         ));
                     }
                 }
+                if (blobResults.isEmpty()) {
+                    state = State.DONE;
+                    return;
+                }
 
             }
             targetAngle += 30;
             if (targetAngle > 360) {
-                state = State.DONE;
+                for (Blob blob : blobResults) {
+                    // WE WILL SEE IF THIS TERM IS CALCULATED BASED ON AREA OR HEIGHT OR WHAT
+                    distance = 1/Math.sqrt(blob.ta);
+                    double score = 0.7* blob.ta-0.05*Math.abs((AngleUnit.normalizeDegrees(blob.tx - imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES)))-0.25/distance);
+                    scores.add(score);
+                }
+                double max = Double.NEGATIVE_INFINITY;
+                for (int i = 0; i < scores.size(); i++) {
+                    if (scores.get(i) > max) {
+                        maxIndex = i;
+                        max = scores.get(i);
+                    }
+                }
+                state = State.TURN;
             } else {
                 state = State.ROTATE;
             }
+        }
+
+        else if (state == State.TURN) {
+            yaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+            double error = AngleUnit.normalizeDegrees(blobResults.get(maxIndex).tx - yaw);
+            // ----- PD ----- TO BE TUNED
+            double derivative = error - lastError;
+            double power = (kP * error) + (kD * derivative);
+            lastError = error;
+            power = Math.max(-0.4, Math.min(0.4, power));
+            drive.setPower(0, 0, power, 1.0);
+            if (Math.abs(error) < 2) {
+                drive.setPower(0, 0, 0, 1.0);
+                lastError = 0;
+                state = State.DRIVE;
+            }
+        }
+
+        else if (state == State.DRIVE) {
+            Blob blob = blobResults.get(maxIndex);
+            double headingToBlob = Math.toRadians(blob.tx);
+            double relX = distance * Math.cos(headingToBlob);
+            double relY = distance * Math.sin(headingToBlob);
+            double robotHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+            double heading = Math.toRadians(robotHeading);
+            double robotX = 0; // WE WILL REPLACE THESE WITH ACC X AND Y ONCE PEDROPATHING AND LOCALIZATION IS SETUP
+            double robotY = 0;
+            double fieldX =
+                    robotX
+                            + relX * Math.cos(heading)
+                            - relY * Math.sin(heading);
+
+            double fieldY =
+                    robotY
+                            + relX * Math.sin(heading)
+                            + relY * Math.cos(heading);
+            // WE WILL FEED IN FIELDX AND FIELDY INTO PEDROPATHING
         }
 
         else if (state == State.DONE) {
