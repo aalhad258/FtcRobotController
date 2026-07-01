@@ -84,7 +84,7 @@ public class AprilTagAutoAlignment extends OpMode {
         }
 
         // Drive our motors
-        drive.setPower(forward, strafe, rotate);
+        drive.setPower(forward, strafe, rotate, 1.0);
 
         // Update P and D on the fly
         // 'B' button cycles through the different step sizes for tuning precision
