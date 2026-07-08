@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
+import com.pedropathing.control.FilteredPIDFCoefficients;
+import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.follower.FollowerConstants;
 import com.pedropathing.ftc.FollowerBuilder;
@@ -16,7 +18,11 @@ public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(5.1) // CHANGE TO ACC MASS (IN KG)
             .forwardZeroPowerAcceleration(-26.45235711) // SET TO ACC
-            .lateralZeroPowerAcceleration(-92.123456789); // SET TO ACC
+            .lateralZeroPowerAcceleration(-92.123456789) // SET TO ACC
+            .translationalPIDFCoefficients(new PIDFCoefficients(0.06, 0, 0.0001, 0.025)) // SET TO ACC
+            .headingPIDFCoefficients(new PIDFCoefficients(0.71, 0, 0.002, 0.025)) // SET TO ACC
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.6, 0.0, 0.0001, 0.6, 0.025)) // SET TO ACC
+            .centripetalScaling(0.0005); // SET TO ACC
 
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)
@@ -40,7 +46,11 @@ public class Constants {
             .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD) // TEST TO FIGURE OUT WHAT ENCODER DIRECTIONS HAVE TO BE
             .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD);
 
-    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1, 1);
+    public static PathConstraints pathConstraints = new PathConstraints(
+            0.99,
+            100,
+            1,
+            1);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)
