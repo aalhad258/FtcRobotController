@@ -50,5 +50,33 @@ public class FourDriveMotors extends OpMode {
         telemetry.addData("lbPower", lbPower);
         telemetry.addData("rfPower", rfPower);
         telemetry.addData("rbPower", rbPower);
+
+        telemetry.addLine("--- Drivetrain: Encoders (ticks) ---");
+        telemetry.addData("lfEncoder", motors.lfMotor.getCurrentPosition());
+        telemetry.addData("lbEncoder", motors.lbMotor.getCurrentPosition());
+        telemetry.addData("rfEncoder", motors.rfMotor.getCurrentPosition());
+        telemetry.addData("rbEncoder", motors.rbMotor.getCurrentPosition());
+
+        telemetry.addLine("--- Drivetrain: Velocity (ticks/sec) ---");
+        telemetry.addData("lfVelocity", motors.lfMotor.getVelocity());
+        telemetry.addData("lbVelocity", motors.lbMotor.getVelocity());
+        telemetry.addData("rfVelocity", motors.rfMotor.getVelocity());
+        telemetry.addData("rbVelocity", motors.rbMotor.getVelocity());
+
+        telemetry.addLine("--- Sensors ---");
+        telemetry.addData("Heading (deg)", imu.getHeading(AngleUnit.DEGREES));
+
+        telemetry.addLine("--- Inputs ---");
+        telemetry.addData("axial", axial);
+        telemetry.addData("lateral", lateral);
+        telemetry.addData("yaw", yaw);
+
+        telemetry.addLine("--- System ---");
+        telemetry.addData("Battery (V)", voltageSensor.getVoltage());
+        telemetry.addData("Loop time (ms)", loopTimer.milliseconds());
+        telemetry.addData("Frequency (Hz)", 1000.0 / loopTimer.milliseconds());
+        telemetry.addData("Runtime (s)", getRuntime());
+
+        telemetry.update();
     }
 }
