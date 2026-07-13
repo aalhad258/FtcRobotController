@@ -15,9 +15,9 @@ import org.firstinspires.ftc.teamcode.mechanism.Drive;
 public class CustomPathing extends OpMode {
 
     private final Drive drive = new Drive();
-    private final Pose2D startPose = new Pose2D(DistanceUnit.INCH,0,0, AngleUnit.RADIANS, 0);
-    private final Pose2D endPose = new Pose2D(DistanceUnit.INCH,5,10, AngleUnit.RADIANS, 0);
-    private Pose2D currentPose = new Pose2D(DistanceUnit.INCH,0,0, AngleUnit.RADIANS, 0);
+    private final Pose2D startPose = new Pose2D(DistanceUnit.INCH,0,0, AngleUnit.DEGREES, 0);
+    private final Pose2D endPose = new Pose2D(DistanceUnit.INCH,10,5, AngleUnit.DEGREES, 0);
+    private Pose2D currentPose = new Pose2D(DistanceUnit.INCH,0,0, AngleUnit.DEGREES, 0);
     GoBildaPinpointDriver pinpoint;
 
     double kPX = 0.002;
@@ -34,6 +34,12 @@ public class CustomPathing extends OpMode {
     double toleranceY = 0.5;
     double kDY = 0.0001;
     double forward;
+    double kPH = 0.002;
+    double errorH = 0;
+    double lastErrorH = 0;
+    double toleranceYH= 0.5;
+    double kDH = 0.0001;
+    double rotate;
 
     @Override
     public void init() {
@@ -57,6 +63,8 @@ public class CustomPathing extends OpMode {
         curTime = getRuntime();
         errorX = endPose.getX(DistanceUnit.INCH) - currentPose.getX(DistanceUnit.INCH);
         errorY = endPose.getY(DistanceUnit.INCH) - currentPose.getY(DistanceUnit.INCH);
+        double theta = currentPose.getHeading(AngleUnit.DEGREES);
+        errorH = endPose.getHeading(AngleUnit.DEGREES) - theta;
         if (Math.abs(errorY) > toleranceY) {
             double pTerm = errorY * kPY;
             double dT = curTime - lastTime;
