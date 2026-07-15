@@ -23,9 +23,9 @@ public class Drive {
         lbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rfMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        lfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        lfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         lbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        rfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        rfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         rbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
     }
 
@@ -33,10 +33,10 @@ public class Drive {
         // accepts values from -1.0 to 0.1
         double max;
 
-        double lfPower = -axial + lateral - yaw;
-        double lbPower = -axial - lateral - yaw;
-        double rfPower = -axial - lateral + yaw;
-        double rbPower = -axial + lateral + yaw;
+        double lfPower = axial - lateral + yaw;
+        double lbPower = axial + lateral + yaw;
+        double rfPower = axial + lateral - yaw;
+        double rbPower = axial - lateral - yaw;
 
         max = Math.max(Math.abs(lfPower), Math.abs(rfPower));
         max = Math.max(max, Math.abs(lbPower));
