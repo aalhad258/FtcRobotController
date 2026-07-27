@@ -45,6 +45,9 @@ public class LimeLightBasic extends OpMode {
     double distance;
     private List<Double> scores;
 
+    double curTime = 0;
+    double lastTime = 0;
+
     @Override
     public void init() {
         limelight3A= hardwareMap.get(Limelight3A.class, "limelight");
@@ -63,6 +66,8 @@ public class LimeLightBasic extends OpMode {
     @Override
     public void start() {
         limelight3A.start();
+        resetRuntime();
+        curTime = getRuntime();
     }
 
     @Override
@@ -72,9 +77,12 @@ public class LimeLightBasic extends OpMode {
             yaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             double error = AngleUnit.normalizeDegrees(targetAngle - yaw);
             // ----- PD ----- TO BE TUNED
-            double derivative = error - lastError;
+            curTime = getRuntime();
+            double dTime = curTime - lastTime;
+            double derivative = (error - lastError)/dTime;
             double power = (kP * error) + (kD * derivative);
             lastError = error;
+            lastTime = curTime;
             power = Math.max(-0.4, Math.min(0.4, power));
             drive.setPower(0, 0, power, 1.0);
             if (Math.abs(error) < 2) {
@@ -139,9 +147,12 @@ public class LimeLightBasic extends OpMode {
             yaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             double error = AngleUnit.normalizeDegrees(blobResults.get(maxIndex).tx - yaw);
             // ----- PD ----- TO BE TUNED
-            double derivative = error - lastError;
+            curTime = getRuntime();
+            double dTime = curTime - lastTime;
+            double derivative = (error - lastError)/dTime;
             double power = (kP * error) + (kD * derivative);
             lastError = error;
+            lastTime = curTime;
             power = Math.max(-0.4, Math.min(0.4, power));
             drive.setPower(0, 0, power, 1.0);
             if (Math.abs(error) < 2) {
@@ -159,7 +170,7 @@ public class LimeLightBasic extends OpMode {
             double relY = distance * Math.sin(headingToBlob);
             double robotHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             double heading = Math.toRadians(robotHeading);
-            double robotX = 0; // WE WILL REPLACE THESE WITH ACC X AND Y ONCE PEDROPATHING AND LOCALIZATION IS SETUP
+            double robotX = 0; // WE WILL REPLACE THESE WITH ACC X AND Y ONCE PEDROPATHING AND LOCALIZATION IS SET UP
             double robotY = 0;
             double fieldX =
                     robotX
