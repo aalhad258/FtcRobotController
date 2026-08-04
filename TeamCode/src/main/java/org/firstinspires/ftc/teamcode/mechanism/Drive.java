@@ -26,7 +26,7 @@ public class Drive {
         lfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         lbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         rfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        rbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        rbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
     }
 
     public void setPower(double axial, double lateral, double yaw, double speed) {
