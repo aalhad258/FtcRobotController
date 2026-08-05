@@ -31,7 +31,7 @@ public class LimeLightBasic extends OpMode {
     // ---- Camera calibration ----
     private static final double CAMERA_HEIGHT_IN = 8.0;        // TODO: height of camera lens off the ground
     private static final double BALL_HEIGHT_IN = 2.0;          // TODO: ball center height off ground (~radius)
-    private static final double CAMERA_MOUNT_ANGLE_DEG = 20.0; // TODO: downward tilt of camera from horizontal
+    private static final double CAMERA_MOUNT_ANGLE_DEG = 10.0; // TODO: downward tilt of camera from horizontal
 
     // ---- Camera's position offset from the robot's center of rotation, robot-local frame ----
     private static final double CAMERA_OFFSET_FORWARD_IN = 0.0; // TODO: + = forward of center
@@ -110,11 +110,11 @@ public class LimeLightBasic extends OpMode {
                 for (LLResultTypes.DetectorResult blob : blobs) {
                     boolean blobThere = false;
                     // Camera-relative angle + current FIELD heading = absolute field bearing.
-                    double trueX = AngleUnit.normalizeDegrees(blob.getTargetXDegrees() + headingDeg);
+                    double trueX = AngleUnit.normalizeDegrees(-blob.getTargetXDegrees() + headingDeg);
                     for (Blob blobResult : blobResults) {
                         if (
-                                (Math.abs(blobResult.tx - trueX) < 6) &&
-                                        (Math.abs(blobResult.ty - blob.getTargetYDegrees()) < 6)
+                                (Math.abs(blobResult.tx - trueX) < 3) &&
+                                        (Math.abs(blobResult.ty - blob.getTargetYDegrees()) < 3)
                         ) {
                             blobThere = true;
                             break;
@@ -128,16 +128,16 @@ public class LimeLightBasic extends OpMode {
                         ));
                     }
                 }
-                if (blobResults.isEmpty()) {
-                    state = State.DONE;
-                    return;
-                }
             }
 
             targetAngle += 30;
             // Compare against the sweep's starting point (startPose heading), not raw 360,
             // since targetAngle is now a field-frame absolute angle that could start anywhere.
             if (targetAngle > Math.toDegrees(startPose.getHeading()) + 360) {
+                if (blobResults.isEmpty()) {
+                    state = State.DONE;
+                    return;
+                }
                 clusterAngle = findBestCluster(blobResults);
                 state = State.TURN;
             } else {
@@ -152,7 +152,7 @@ public class LimeLightBasic extends OpMode {
             }
             if (!follower.isBusy()) {
                 turnCommandIssued = false;
-                state = State.SAMPLE;
+                state = State.DRIVE;
             }
         }
 
@@ -162,8 +162,11 @@ public class LimeLightBasic extends OpMode {
                 sumTy += b.ty;
             }
             double avgTy = sumTy / bestCluster.size();
-            distance = Math.max((CAMERA_HEIGHT_IN - BALL_HEIGHT_IN)
-                    / Math.tan(Math.toRadians(CAMERA_MOUNT_ANGLE_DEG + avgTy)), 30);
+            distance = Math.min(
+                    (CAMERA_HEIGHT_IN - BALL_HEIGHT_IN)
+                            / Math.tan(Math.toRadians(CAMERA_MOUNT_ANGLE_DEG + avgTy)),
+                    30
+            );
 
             Pose currentPose = follower.getPose();
             double robotX = currentPose.getX();
