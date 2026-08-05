@@ -162,11 +162,10 @@ public class LimeLightBasic extends OpMode {
                 sumTy += b.ty;
             }
             double avgTy = sumTy / bestCluster.size();
-            distance = Math.min(
-                    (CAMERA_HEIGHT_IN - BALL_HEIGHT_IN)
-                            / Math.tan(Math.toRadians(CAMERA_MOUNT_ANGLE_DEG + avgTy)),
-                    30
-            );
+            double effAngle = CAMERA_MOUNT_ANGLE_DEG + avgTy;
+            effAngle = Math.max(5, Math.min(85, effAngle)); // keep tan() well-behaved
+            double rawDistance = (CAMERA_HEIGHT_IN - BALL_HEIGHT_IN) / Math.tan(Math.toRadians(effAngle));
+            distance = Math.max(6, Math.min(rawDistance, 96)); // sane min/max for field, tune these
 
             Pose currentPose = follower.getPose();
             double robotX = currentPose.getX();
