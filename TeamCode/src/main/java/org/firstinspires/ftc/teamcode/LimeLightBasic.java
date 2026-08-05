@@ -26,7 +26,7 @@ public class LimeLightBasic extends OpMode {
 
     private static final double CLUSTER_WINDOW_DEG = 20.0;
     private static final double SIZE_WEIGHT = 1.0;
-    private static final double DISTANCE_WEIGHT = 0.5;
+    private static final double DISTANCE_WEIGHT = 0.1;
 
     // ---- Camera calibration ----
     private static final double CAMERA_HEIGHT_IN = 8.0;        // TODO: height of camera lens off the ground
@@ -45,7 +45,6 @@ public class LimeLightBasic extends OpMode {
     private enum State {
         ROTATE,
         SAMPLE,
-        TURN,
         DRIVE,
         PATH_TO_BALL,
         DONE
@@ -112,10 +111,11 @@ public class LimeLightBasic extends OpMode {
                     // Camera-relative angle + current FIELD heading = absolute field bearing.
                     double trueX = AngleUnit.normalizeDegrees(-blob.getTargetXDegrees() + headingDeg);
                     for (Blob blobResult : blobResults) {
-                        if (
-                                (Math.abs(blobResult.tx - trueX) < 3) &&
-                                        (Math.abs(blobResult.ty - blob.getTargetYDegrees()) < 3)
-                        ) {
+                        double angleDiff =
+                                AngleUnit.normalizeDegrees(blobResult.tx - trueX);
+
+                        if (Math.abs(angleDiff) < 3 &&
+                                Math.abs(blobResult.ty - blob.getTargetYDegrees()) < 3) {
                             blobThere = true;
                             break;
                         }
@@ -139,20 +139,9 @@ public class LimeLightBasic extends OpMode {
                     return;
                 }
                 clusterAngle = findBestCluster(blobResults);
-                state = State.TURN;
+                state = State.DRIVE;
             } else {
                 state = State.ROTATE;
-            }
-        }
-
-        else if (state == State.TURN) {
-            if (!turnCommandIssued) {
-                follower.turnTo(Math.toRadians(clusterAngle));
-                turnCommandIssued = true;
-            }
-            if (!follower.isBusy()) {
-                turnCommandIssued = false;
-                state = State.DRIVE;
             }
         }
 
@@ -173,7 +162,7 @@ public class LimeLightBasic extends OpMode {
             double robotHeadingRad = currentPose.getHeading();
 
             // clusterAngle is ALREADY an absolute field bearing (camera angle + heading was
-            // baked in back in SAMPLE), so we project distance directly along it â€” no second
+            // baked in back in SAMPLE), so we project distance directly along it, no second
             // rotation by robotHeading here, unlike the earlier version.
             double clusterAngleRad = Math.toRadians(clusterAngle);
             double fieldX = robotX + distance * Math.cos(clusterAngleRad);
@@ -186,7 +175,7 @@ public class LimeLightBasic extends OpMode {
             fieldX += cameraFieldOffsetX;
             fieldY += cameraFieldOffsetY;
 
-            Pose ballPose = new Pose(fieldX, fieldY, robotHeadingRad);
+            Pose ballPose = new Pose(fieldX, fieldY, clusterAngleRad);
             PathChain driveToCluster = follower.pathBuilder()
                     .addPath(new BezierLine(currentPose, ballPose))
                     .setLinearHeadingInterpolation(currentPose.getHeading(), ballPose.getHeading())
@@ -211,6 +200,12 @@ public class LimeLightBasic extends OpMode {
         telemetry.addData("clusterAngle", clusterAngle);
         telemetry.addData("distance", distance);
         telemetry.addData("robot pose", follower.getPose().toString());
+        telemetry.addData("blobs ", blobResults.size());
+        for (Blob b: blobResults) {
+            telemetry.addData("Blob tx", b.tx);
+            telemetry.addData("Blob ty", b.ty);
+            telemetry.addData("Blob ta", b.ta);
+        }
     }
 
     public double findBestCluster(List<Blob> blobResults) {
