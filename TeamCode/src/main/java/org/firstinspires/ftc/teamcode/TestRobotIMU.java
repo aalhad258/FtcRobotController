@@ -13,10 +13,7 @@ import org.firstinspires.ftc.teamcode.mechanism.RobotIMU;
  *  Intended purpose: bench-test RobotIMU.java (the standalone hub-IMU
  *  wrapper) by printing its live yaw reading to telemetry. HOWEVER, as
  *  written, this file has several structural issues that will make it
- *  behave very differently from what its name suggests. Per your
- *  instructions NONE of the logic below has been changed -- everything in
- *  this block is flagging existing behavior, not describing a fix that's
- *  been applied.
+ *  behave very differently from what its name suggests.
  *
  *  !!! ISSUE 1: MISSING @TeleOp / @Autonomous ANNOTATION !!!
  *  This class has no @TeleOp or @Autonomous annotation. Every other OpMode

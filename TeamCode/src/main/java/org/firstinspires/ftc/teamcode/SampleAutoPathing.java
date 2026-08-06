@@ -29,11 +29,10 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
  *  This OpMode is annotated @TeleOp, NOT @Autonomous. That means it will
  *  show up in the Driver Station's TeleOp OpMode list, not the Autonomous
  *  list. If this is meant to be run during the autonomous period of a
- *  match, it currently WON'T be selectable there. This looks like it was
+ *  match, it currently WON'T be selectable there. This was
  *  left as @TeleOp for bench-testing convenience (so a driver can trigger
  *  it manually without the 30-second auto period timeout), but it is worth
  *  double-checking before relying on this pattern in a real match auto.
- *  (Per your instructions this has not been changed -- flagging only.)
  *
  *  Reference docs:
  *   - PedroPathing Follower / PathBuilder / PathChain / BezierLine:
