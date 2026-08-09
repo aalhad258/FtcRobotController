@@ -107,7 +107,7 @@ public class Constants {
             //   P = 0.5, D = 0.05, F = 0.033
             // If turnTo() overshoots/oscillates the target heading -> lower P
             // or raise D. If it's sluggish to reach heading -> raise P.
-            .headingPIDFCoefficients(new PIDFCoefficients(0.5, 0, 0.05, 0.033))
+            .headingPIDFCoefficients(new PIDFCoefficients(0.7, 0, 0.01, 0.0))
 
             // Drive PIDF (filtered): the low-level velocity controller that
             // converts "how fast do I want this drivetrain axis moving" into
