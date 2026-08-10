@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -28,7 +29,7 @@ import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
  *  driver, that means pushing the stick forward here will command
  *  NEGATIVE motor power (spin one way), and pulling it back will command
  *  POSITIVE power (spin the other way) -- the opposite intuitive mapping
- *  used elsewhere in this codebase. This may well be intentional for this
+ *  used elsewhere in this codebase. This is intentional for this
  *  particular bench test (there's no "forward" concept for a single
  *  arbitrary test motor the way there is for a drivetrain), but it's worth
  *  knowing about so it doesn't cause confusion if you're expecting
@@ -36,6 +37,8 @@ import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
  *  convention.
  * ============================================================================
  */
+
+@Disabled
 @TeleOp
 public class TestDcMotor extends OpMode {
     DcMotor bench = new DcMotor();

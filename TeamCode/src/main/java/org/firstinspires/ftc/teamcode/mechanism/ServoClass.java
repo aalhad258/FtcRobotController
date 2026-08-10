@@ -16,37 +16,15 @@ import com.qualcomm.robotcore.hardware.Servo;
  *      motor -- driven by POWER, -1.0 to 1.0, not position).
  *  Used directly by ServoExamples.java to demo/bench-test both from the
  *  gamepad triggers.
- *
- *  !!! HIGH-PRIORITY COMPETITION-DEBUGGING FLAG !!!
- *  Look closely at the two hardwareMap device names used in init() below:
- *      servoPos = hwMap.get(Servo.class,   "serve_pos")   <- "serve_pos"
- *      servoRot = hwMap.get(CRServo.class, "servo_pos")   <- "servo_pos"
- *  These are NOT the same string -- "serve_pos" (servoPos) vs. "servo_pos"
- *  (servoRot), one letter apart. This is either (a) intentional and matches
- *  two distinctly-named devices in the robot's hardware configuration file
- *  on the Driver Station/Control Hub, or (b) a copy-paste typo. If this
- *  class ever throws an exception on init() (a "device not found" /
- *  IllegalArgumentException from hwMap.get()), or if ServoExamples.java's
- *  position servo doesn't move at all despite the CRServo working, THIS
- *  NAME MISMATCH IS THE FIRST THING TO CHECK against the actual Driver
- *  Station robot configuration -- confirm both "serve_pos" and "servo_pos"
- *  really do exist as two separately-named devices there, not just one.
- *  (Per your instructions this has not been changed -- flagging only.)
  * ============================================================================
  */
 public class ServoClass {
     private Servo servoPos;
     private CRServo servoRot;
 
-    /**
-     * @param hwMap the OpMode's hardwareMap. See the class-level note above
-     *              regarding the "serve_pos" vs "servo_pos" device names
-     *              used here -- verify both exist in the robot configuration
-     *              before assuming this init() will succeed unmodified.
-     */
     public void init(HardwareMap hwMap) {
-        servoPos = hwMap.get(Servo.class, "serve_pos");
-        servoRot = hwMap.get(CRServo.class, "servo_pos");
+        servoPos = hwMap.get(Servo.class, "servo_pos");
+        servoRot = hwMap.get(CRServo.class, "servo_rot");
         // Remaps the [0.0, 1.0] input range accepted by setServoPos() below
         // onto the PHYSICAL [0.5, 1.0] portion of the servo's raw travel --
         // i.e. restricts usable motion to the servo's midpoint-to-full-travel

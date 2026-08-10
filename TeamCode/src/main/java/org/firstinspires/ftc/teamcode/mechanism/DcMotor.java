@@ -23,7 +23,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  *  DELIBERATELY does NOT import com.qualcomm.robotcore.hardware.DcMotor --
  *  it refers to it with its FULLY QUALIFIED name everywhere below
  *  (`com.qualcomm.robotcore.hardware.DcMotor`) so the compiler can tell it
- *  apart from this wrapper class's own name. If you ever add an import for
+ *  apart from this wrapper class's own name. If we ever add an import for
  *  `com.qualcomm.robotcore.hardware.DcMotor` at the top of this file "to
  *  clean it up", it will immediately collide with this class's own name and
  *  fail to compile (or silently refer to the wrong type, depending on

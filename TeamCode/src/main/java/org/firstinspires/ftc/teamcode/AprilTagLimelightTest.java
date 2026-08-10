@@ -29,7 +29,7 @@ import org.firstinspires.ftc.teamcode.mechanism.AprilTagLimelight;
  *  AprilTagLimelight.java, where every one of those methods independently
  *  re-fetches the latest result rather than sharing one cached value). This
  *  is not incorrect -- Limelight results don't change mid-loop-iteration in
- *  practice -- but it is worth knowing about if you're ever chasing a subtle
+ *  practice -- but it is worth knowing about if we're ever chasing a subtle
  *  timing inconsistency or trying to reduce loop-time overhead.
  *
  *  Reference docs:

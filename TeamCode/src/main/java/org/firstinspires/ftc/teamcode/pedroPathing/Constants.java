@@ -104,7 +104,7 @@ public class Constants {
             // state, which calls follower.turnTo()). Gains here are much larger
             // than translational because heading (degrees) and position
             // (inches) are different units/scales.
-            //   P = 0.5, D = 0.05, F = 0.033
+            //   P = 0.7, D = 0.01, F = 0.0
             // If turnTo() overshoots/oscillates the target heading -> lower P
             // or raise D. If it's sluggish to reach heading -> raise P.
             .headingPIDFCoefficients(new PIDFCoefficients(0.7, 0, 0.01, 0.0))

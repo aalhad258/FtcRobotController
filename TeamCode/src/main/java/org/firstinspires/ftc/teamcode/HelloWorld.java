@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -22,6 +23,8 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
  *   telemetry and never needs to run on a timer.
  *   Reference: FTC SDK docs on OpMode annotations (@TeleOp vs @Autonomous).
  */
+
+@Disabled
 @TeleOp
 public class HelloWorld extends OpMode{
 

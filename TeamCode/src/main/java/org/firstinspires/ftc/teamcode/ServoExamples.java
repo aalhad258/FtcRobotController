@@ -17,14 +17,6 @@ import org.firstinspires.ftc.teamcode.mechanism.ServoClass;
  *  to how far IT is pressed. No PID, no autonomous logic -- purely a manual
  *  "does the hardware respond correctly" check.
  *
- *  !!! CARRY-OVER FLAG FROM ServoClass.java !!!
- *  ServoClass.init() looks up its two servos under the hardwareMap names
- *  "serve_pos" (positional Servo) and "servo_pos" (CRServo) -- one letter
- *  apart. If running THIS OpMode throws an exception immediately on init(),
- *  or if only one of the two triggers produces visible motion, go re-read
- *  the class-level comment at the top of ServoClass.java before assuming
- *  the bug is in this file -- it's almost certainly that naming mismatch.
- *
  *  Trigger values (gamepad1.left_trigger / right_trigger) range 0.0
  *  (untouched) to 1.0 (fully pressed) -- note that because ServoClass's
  *  positional range is scaled to [0.5, 1.0] internally (see
@@ -42,10 +34,7 @@ public class ServoExamples extends OpMode {
     public void init() {
         servo.init(hardwareMap);
 
-        // --- ADDED TELEMETRY: confirm init completed. If ServoClass's "serve_pos" /
-        // "servo_pos" hardwareMap name mismatch (see class header above) is going to
-        // throw, it will throw from inside this call -- this line simply won't appear
-        // on the driver station if that happens, which is itself a useful diagnostic. ---
+        // --- ADDED TELEMETRY: confirm init completed. ---
         telemetry.addLine("ServoExamples: init complete (servo.init succeeded)");
         telemetry.update();
     }

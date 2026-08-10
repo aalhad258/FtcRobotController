@@ -33,7 +33,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
  *       pose solve. If BOTH this class and AprilTagLimelight are
  *       initialized in the same OpMode, imu.initialize() would effectively
  *       be called twice on the same underlying hardware device -- probably
- *       harmless, but worth knowing if you ever see a heading value
+ *       harmless, but worth knowing if we ever see a heading value
  *       unexpectedly reset/reset-to-zero part way through an OpMode.
  *    3. The GoBilda Pinpoint odometry computer (Constants.java's
  *       PinpointConstants / CustomPathing.java's direct pinpoint usage) --
