@@ -247,7 +247,7 @@ public class LimeLightBasic extends OpMode {
                             double trueX = AngleUnit.normalizeDegrees(-blob.getTargetXDegrees() + headingDegNow);
                             for (Blob blobResult : blobResults) {
                                 double angleDiff = AngleUnit.normalizeDegrees(blobResult.tx - trueX);
-                                if (Math.abs(angleDiff) < 3 && Math.abs(blobResult.ty - blob.getTargetYDegrees()) < 3) {
+                                if (Math.abs(angleDiff) < 6 && Math.abs(blobResult.ty - blob.getTargetYDegrees()) < 3) {
                                     // Same physical object as an existing entry — refine
                                     // its stored position instead of discarding this
                                     // reading, so repeated noisy samples of one object
