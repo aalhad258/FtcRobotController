@@ -17,6 +17,55 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * ============================================================================
+ *  VISION-GUIDED "FIND, DRIVE TO, AND COLLECT" AUTO -- FIELD-SPACE, STEPPED SWEEP
+ * ============================================================================
+ *
+ *  The fourth and final member of this file family (see LimeLightBasic.java's
+ *  header for the full overview table). THIS FILE combines:
+ *    - FIELD-SPACE clustering (shared with LimeLightBasicDist.java, AXIS 1):
+ *      every detection is immediately converted to an absolute field X/Y
+ *      (the FieldBlob type below) and deduplicated/clustered by physical
+ *      distance on the field, not camera bearing angle. See
+ *      LimeLightBasicDist.java's header for the full explanation of why
+ *      this avoids the angle-space clustering blind spot (objects at
+ *      similar bearing but very different distance being wrongly merged).
+ *    - DISCRETE STEPPED sweep (shared with LimelightIncrements.java, AXIS 2):
+ *      12 counted ROTATE -> SETTLE(150ms) -> SAMPLE cycles at 30-degree
+ *      increments, rather than one continuous spin. See
+ *      LimelightIncrements.java's header for the full explanation of the
+ *      deterministic-termination and cleaner-sample-quality tradeoffs this
+ *      brings relative to the continuous-sweep "Basic" siblings.
+ *
+ *  This file is, in a sense, the "most conservative/most robust" member of
+ *  the family: field-space clustering avoids the angle-only clustering
+ *  blind spot, AND stepped sweeping avoids the timing-dependent sweep
+ *  termination and motion-blur concerns of continuous sweeping -- at the
+ *  cost of being the SLOWEST of the four (full stop/settle/sample cycles,
+ *  12 times, per object collected).
+ *
+ *  !!! CAMERA CALIBRATION -- KEPT IN SYNC WITH THE REST OF THE FAMILY !!!
+ *  CAMERA_HEIGHT_IN / BALL_HEIGHT_IN below are set to 5.5 / 2.8, matching
+ *  LimeLightBasic.java / LimeLightBasicDist.java / LimelightIncrements.java
+ *  (this file previously used different, older placeholder numbers -- now
+ *  brought in line with its siblings).
+ *
+ *  Reference docs: see LimeLightBasic.java's header (PedroPathing,
+ *  Limelight3A) and LimelightIncrements.java's header (ElapsedTime) -- all
+ *  apply identically here.
+ *
+ *  COMPETITION DEBUGGING CHEAT SHEET (this file specifically):
+ *    - Slowest of the four files to complete a sweep -> expected by design,
+ *      see above; not a bug.
+ *    - Two physically separate objects merged, or the same object recorded
+ *      twice -> tune CLUSTER_RADIUS_IN / DUP_TOLERANCE_IN respectively (see
+ *      LimeLightBasicDist.java's cheat sheet -- identical concern here).
+ *    - Robot drives to objects but doesn't collect them -> startIntake()/
+ *      stopIntake() are still empty stub methods, same as every other file
+ *      in this family.
+ * ============================================================================
+ */
 @Autonomous
 public class LimelightIncrementsDist extends OpMode {
     private Limelight3A limelight3A;
@@ -30,12 +79,17 @@ public class LimelightIncrementsDist extends OpMode {
     private static final double SIZE_WEIGHT = 10.0;
     private static final double DISTANCE_WEIGHT = 0.05;
 
-    // Camera Calibration
-    private static final double CAMERA_HEIGHT_IN = 8.0;
-    private static final double BALL_HEIGHT_IN = 2.0;
+    // Camera Calibration -- updated to match the rest of the family (was
+    // previously 8.0 / 2.0).
+    private static final double CAMERA_HEIGHT_IN = 5.5;
+    private static final double BALL_HEIGHT_IN = 2.8;
     private static final double CAMERA_MOUNT_ANGLE_DEG = 10.0;
 
     // Distance Calibration Tweaks
+    // Same per-detection correction approach as LimeLightBasicDist.java
+    // (applied at collection time, not just once at the end) -- see that
+    // file's header for why this matters more here than in the angle-space
+    // siblings.
     private static final double DISTANCE_OFFSET_IN = 5.0; // Flat extra inches added to reach target
     private static final double DISTANCE_MULTIPLIER = 1.05; // Scaling factor for perspective skew
 
@@ -70,6 +124,8 @@ public class LimelightIncrementsDist extends OpMode {
 
     /**
      * Helper class representing a detected object in absolute Field X, Y space.
+     * Identical role to LimeLightBasicDist.java's FieldBlob -- see that
+     * file's javadoc for the full explanation.
      */
     public static class FieldBlob {
         public double x;
@@ -99,6 +155,12 @@ public class LimelightIncrementsDist extends OpMode {
         targetAngle = AngleUnit.normalizeDegrees(startHeadingDeg + 30);
 
         telemetry.addLine("LimelightIncrementsDist Initialized (Field-Space Coordinates)");
+        // --- ADDED TELEMETRY: config snapshot before any motion ---
+        telemetry.addData("startPose (x,y,heading deg)", "%.2f, %.2f, %.2f",
+                startPose.getX(), startPose.getY(), Math.toDegrees(startPose.getHeading()));
+        telemetry.addData("CLUSTER_RADIUS_IN / DUP_TOLERANCE_IN", CLUSTER_RADIUS_IN + " / " + DUP_TOLERANCE_IN);
+        telemetry.addData("CAMERA_HEIGHT_IN / BALL_HEIGHT_IN", CAMERA_HEIGHT_IN + " / " + BALL_HEIGHT_IN);
+        telemetry.addData("TOTAL_SWEEP_STEPS", TOTAL_SWEEP_STEPS);
         telemetry.update();
     }
 
@@ -127,6 +189,8 @@ public class LimelightIncrementsDist extends OpMode {
                     turnCommandIssued = false;
                     stateTimer.reset();
                     state = State.SETTLE;
+                    // --- ADDED TELEMETRY ---
+                    telemetry.addData("ROTATE complete via", !follower.isBusy() ? "follower not busy" : "heading within 3deg");
                 }
                 break;
 
@@ -139,6 +203,8 @@ public class LimelightIncrementsDist extends OpMode {
 
             case SAMPLE:
                 LLResult llResult = limelight3A.getLatestResult();
+                // --- ADDED TELEMETRY ---
+                telemetry.addData("SAMPLE: LL result valid?", llResult != null && llResult.isValid());
                 if (llResult != null && llResult.isValid()) {
                     List<LLResultTypes.DetectorResult> blobs = llResult.getDetectorResults();
 
@@ -191,6 +257,10 @@ public class LimelightIncrementsDist extends OpMode {
                         targetClusterCenter = findBestFieldCluster(fieldBlobs);
                         turnCommandIssued = false;
                         state = State.TURN;
+                        // --- ADDED TELEMETRY ---
+                        telemetry.addLine("Sweep complete (12/12 steps): field cluster selected -> TURN");
+                        telemetry.addData("targetClusterCenter (x,y)", "%.2f, %.2f",
+                                targetClusterCenter.x, targetClusterCenter.y);
                     }
                 } else {
                     targetAngle = AngleUnit.normalizeDegrees(targetAngle + 30);
@@ -205,6 +275,10 @@ public class LimelightIncrementsDist extends OpMode {
                 }
 
                 // Vector from current robot position to cluster center
+                // -- heading computed directly via atan2 from field
+                // geometry, same approach as LimeLightBasicDist.java's TURN
+                // state (see that file's comment for why this is natural
+                // once you already have an absolute field-space target).
                 double dx = targetClusterCenter.x - currentPose.getX();
                 double dy = targetClusterCenter.y - currentPose.getY();
                 targetDistance = Math.hypot(dx, dy);
@@ -239,6 +313,9 @@ public class LimelightIncrementsDist extends OpMode {
 
                 follower.followPath(driveToCluster, true);
                 state = State.PATH_TO_BALL;
+                // --- ADDED TELEMETRY ---
+                telemetry.addData("DRIVE: target ballPose (x,y,heading deg)", "%.2f, %.2f, %.2f",
+                        targetClusterCenter.x, targetClusterCenter.y, Math.toDegrees(clusterAngleRad));
                 break;
 
             case PATH_TO_BALL:
@@ -246,6 +323,8 @@ public class LimelightIncrementsDist extends OpMode {
                     stopIntake();
                     resetSweep();
                     state = State.ROTATE;
+                    // --- ADDED TELEMETRY ---
+                    telemetry.addLine("PATH_TO_BALL complete: arrived, restarting sweep for next object");
                 }
                 break;
 
@@ -258,9 +337,17 @@ public class LimelightIncrementsDist extends OpMode {
         telemetry.addData("Blobs Found", fieldBlobs.size());
         telemetry.addData("Target Heading", targetHeadingDeg);
         telemetry.addData("Target Distance (in)", targetDistance);
+        // --- ADDED TELEMETRY ---
+        telemetry.addData("follower busy?", follower.isBusy());
+        telemetry.addData("loop runtime (s)", getRuntime());
         telemetry.update();
     }
 
+    /**
+     * Resets sweep bookkeeping for the next 360-degree pass. See
+     * LimelightIncrements.java's identical note about targetAngle not being
+     * reset here -- ROTATE re-evaluates turnCommandIssued fresh regardless.
+     */
     public void resetSweep() {
         fieldBlobs = new ArrayList<>();
         sweepStepCount = 0;
@@ -269,6 +356,14 @@ public class LimelightIncrementsDist extends OpMode {
 
     /**
      * Evaluates clusters in 2D field-space using a physical radius on the mat.
+     * Identical greedy-centroid technique to LimeLightBasicDist.java's
+     * findBestFieldCluster() -- see that file's javadoc for the full
+     * explanation (O(n^2) all-pairs comparison, returns the winning
+     * neighborhood's AVERAGE position rather than any single detection's
+     * position, and reads follower.getPose() fresh once per candidate).
+     * Reproduced here rather than shared -- see LimelightIncrements.java's
+     * note about the angle-space clustering logic being duplicated across
+     * files for the same reason.
      */
     private FieldBlob findBestFieldCluster(List<FieldBlob> blobs) {
         if (blobs.isEmpty()) return null;
@@ -306,6 +401,8 @@ public class LimelightIncrementsDist extends OpMode {
         return bestCenter;
     }
 
+    // --- STUB METHODS: no physical intake mechanism wired up yet -- see the
+    // identical note in every other file in this family. ---
     private void startIntake() {
 
     }
