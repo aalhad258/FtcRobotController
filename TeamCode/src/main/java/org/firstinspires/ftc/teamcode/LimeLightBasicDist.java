@@ -335,7 +335,7 @@ public class LimeLightBasicDist extends OpMode {
             // TURN, above) -- the robot ends the path facing directly at
             // the cluster center, same intent as LimeLightBasic.java's
             // ballPose but derived via atan2 instead of reused bearing.
-            Pose ballPose = new Pose(targetClusterCenter.x, targetClusterCenter.y, Math.toRadians(targetHeadingDeg));
+            Pose ballPose = new Pose(targetClusterCenter.x + 5, targetClusterCenter.y + 5, Math.toRadians(targetHeadingDeg));
 
             PathChain driveToCluster = follower.pathBuilder()
                     .addPath(new BezierLine(currentPose, ballPose))
