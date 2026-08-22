@@ -71,10 +71,10 @@ public class Drive {
      * @param hwMap the OpMode's hardwareMap
      */
     public void init(HardwareMap hwMap) {
-        lfMotor = hwMap.get(DcMotor.class, "leftFrontMotor");
-        lbMotor = hwMap.get(DcMotor.class, "leftBackMotor");
-        rfMotor = hwMap.get(DcMotor.class, "rightFrontMotor");
-        rbMotor = hwMap.get(DcMotor.class, "rightBackMotor");
+        lfMotor = hwMap.get(DcMotor.class, "leftBackMotor");
+        lbMotor = hwMap.get(DcMotor.class, "leftFrontMotor");
+        rfMotor = hwMap.get(DcMotor.class, "rightBackMotor");
+        rbMotor = hwMap.get(DcMotor.class, "rightFrontMotor");
         // RUN_WITHOUT_ENCODER: pure open-loop power control, no internal
         // velocity PID from the motor controller itself. Set explicitly here
         // (rather than relying on SDK default) so it's unambiguous that this
@@ -100,8 +100,8 @@ public class Drive {
         // asymmetric pattern (3 REVERSE, 1 FORWARD): this was arrived at
         // empirically, not by a symmetric "left side vs right side" rule, so
         // don't assume it should mirror left-to-right or front-to-back.
-        lfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        lbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        lfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        lbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         rfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         rbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
     }
@@ -138,10 +138,10 @@ public class Drive {
         // (depending on which diagonal that wheel's rollers lie along), plus
         // or minus the rotation component (depending on which side of the
         // robot the wheel is on).
-        double lfPower = axial - lateral + yaw;
-        double lbPower = axial + lateral + yaw;
-        double rfPower = axial + lateral - yaw;
-        double rbPower = axial - lateral - yaw;
+        double lfPower = axial + lateral + yaw;
+        double lbPower = axial - lateral + yaw;
+        double rfPower = axial - lateral - yaw;
+        double rbPower = axial + lateral - yaw;
 
         // Find the largest-magnitude commanded power across all 4 wheels.
         max = Math.max(Math.abs(lfPower), Math.abs(rfPower));
