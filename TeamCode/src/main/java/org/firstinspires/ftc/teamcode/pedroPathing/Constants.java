@@ -161,10 +161,10 @@ public class Constants {
 
             // See the O-vs-X roller note above: these hardwareMap names are
             // intentionally cross-mapped, not a 1:1 physical-to-logical match.
-            .rightFrontMotorName("rightBackMotor")
-            .rightRearMotorName("rightFrontMotor")
-            .leftRearMotorName("leftFrontMotor")
-            .leftFrontMotorName("leftBackMotor")
+            .rightFrontMotorName("rightFrontMotor")
+            .rightRearMotorName("rightBackMotor")
+            .leftRearMotorName("leftBackMotor")
+            .leftFrontMotorName("leftFrontMotor")
 
             // Motor spin directions as PedroPathing sees them (post name-swap
             // above). These were determined empirically by running the
@@ -174,8 +174,8 @@ public class Constants {
             // these rather than assuming symmetry (e.g. don't assume
             // left/right should mirror each other, since the O-roller +
             // name-swap combination breaks that intuition).
-            .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
+            .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
+            .leftRearMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightRearMotorDirection(DcMotorSimple.Direction.REVERSE)
 

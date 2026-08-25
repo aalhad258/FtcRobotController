@@ -71,10 +71,10 @@ public class Drive {
      * @param hwMap the OpMode's hardwareMap
      */
     public void init(HardwareMap hwMap) {
-        lfMotor = hwMap.get(DcMotor.class, "leftBackMotor");
-        lbMotor = hwMap.get(DcMotor.class, "leftFrontMotor");
-        rfMotor = hwMap.get(DcMotor.class, "rightBackMotor");
-        rbMotor = hwMap.get(DcMotor.class, "rightFrontMotor");
+        lfMotor = hwMap.get(DcMotor.class, "leftFrontMotor");
+        lbMotor = hwMap.get(DcMotor.class, "leftBackMotor");
+        rfMotor = hwMap.get(DcMotor.class, "rightFrontMotor");
+        rbMotor = hwMap.get(DcMotor.class, "rightBackMotor");
         // RUN_WITHOUT_ENCODER: pure open-loop power control, no internal
         // velocity PID from the motor controller itself. Set explicitly here
         // (rather than relying on SDK default) so it's unambiguous that this
@@ -100,8 +100,8 @@ public class Drive {
         // asymmetric pattern (3 REVERSE, 1 FORWARD): this was arrived at
         // empirically, not by a symmetric "left side vs right side" rule, so
         // don't assume it should mirror left-to-right or front-to-back.
-        lfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        lbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        lfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        lbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         rfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         rbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
     }
