@@ -49,9 +49,9 @@ public class DcMotor {
      *
      * @param hwMap the OpMode's hardwareMap
      */
-    public void init(HardwareMap hwMap) {
+    public void init(HardwareMap hwMap, String name) {
         // DC motor
-        motor = hwMap.get(com.qualcomm.robotcore.hardware.DcMotor.class, "motor");
+        motor = hwMap.get(com.qualcomm.robotcore.hardware.DcMotor.class, name);
         // RUN_USING_ENCODER: the motor controller's internal closed-loop
         // velocity control is active, using the encoder to hold a
         // requested speed under varying load -- contrast with Drive.java's

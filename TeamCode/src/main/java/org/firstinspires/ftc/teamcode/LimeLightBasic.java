@@ -12,6 +12,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.mechanism.Blob;
+import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
@@ -162,6 +163,8 @@ public class LimeLightBasic extends OpMode {
     // safe to check even before a sweep ever completes.
     private List<Blob> bestCluster = new ArrayList<>();
 
+    DcMotor intake = new DcMotor();
+
     private enum State {
         SWEEP,
         TURN,
@@ -198,6 +201,8 @@ public class LimeLightBasic extends OpMode {
         // tuning this relies on).
         follower = Constants.createFollower(hardwareMap);
         follower.setPose(startPose);
+
+        intake = hardwareMap.get(DcMotor.class, "intake");
 
         state = State.SWEEP;
         resetSweep();
@@ -538,10 +543,10 @@ public class LimeLightBasic extends OpMode {
     // mechanism calls (e.g. a ServoClass or DcMotor mechanism instance)
     // before this auto can actually collect anything.
     private void startIntake() {
-
+        intake.setMotorSpeed(1.0);
     }
 
     private void stopIntake() {
-
+        intake.setMotorSpeed(0.0);
     }
 }

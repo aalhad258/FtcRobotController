@@ -45,7 +45,7 @@ public class TestDcMotor extends OpMode {
 
     @Override
     public void init() {
-        bench.init(hardwareMap);
+        bench.init(hardwareMap, "motor");
 
         // --- ADDED TELEMETRY: confirm init completed and show the motor's rated
         // ticks-per-rev right away, before any motion, so a bad/unexpected motor
