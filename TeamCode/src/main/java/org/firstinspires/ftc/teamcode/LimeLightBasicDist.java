@@ -11,6 +11,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
@@ -117,6 +118,7 @@ public class LimeLightBasicDist extends OpMode {
     private final Pose startPose = new Pose(56.0, 8.0, Math.toRadians(90));
 
     private FieldBlob targetClusterCenter;
+    private DcMotor intake = new DcMotor();
 
     private enum State {
         SWEEP,
@@ -162,6 +164,7 @@ public class LimeLightBasicDist extends OpMode {
         limelight3A = hardwareMap.get(Limelight3A.class, "limelight");
         limelight3A.pipelineSwitch(0);
         fieldBlobs = new ArrayList<>();
+        intake.init(hardwareMap, "intake");
 
         follower = Constants.createFollower(hardwareMap);
         follower.setPose(startPose);
@@ -457,10 +460,10 @@ public class LimeLightBasicDist extends OpMode {
     // --- STUB METHODS: no physical intake mechanism wired up yet -- see the
     // identical note in LimeLightBasic.java. ---
     private void startIntake() {
-
+        intake.setMotorSpeed(-1.0);
     }
 
     private void stopIntake() {
-
+        intake.setMotorSpeed(0.0);
     }
 }

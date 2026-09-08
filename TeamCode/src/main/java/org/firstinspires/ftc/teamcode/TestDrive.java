@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
 import org.firstinspires.ftc.teamcode.mechanism.Drive;
 
 /**
@@ -40,9 +41,11 @@ import org.firstinspires.ftc.teamcode.mechanism.Drive;
 @TeleOp
 public class TestDrive extends OpMode {
     Drive drive = new Drive();;
+    DcMotor intake = new DcMotor();
     @Override
     public void init() {
         drive.init(hardwareMap);
+        intake.init(hardwareMap, "intake");
 
         // --- ADDED TELEMETRY: confirm init completed ---
         telemetry.addLine("TestDrive: init complete -- raw stick-to-drivetrain bench test");
@@ -61,6 +64,14 @@ public class TestDrive extends OpMode {
         telemetry.addData("axial", axial);
         telemetry.addData("lateral", lateral);
         telemetry.addData("yaw", yaw);
+
+        if (gamepad1.left_bumper) {
+            intake.setMotorSpeed(1.0);
+        }
+
+        if (gamepad1.right_bumper) {
+            intake.setMotorSpeed(-1.0);
+        }
 
         // --- ADDED TELEMETRY: raw gamepad stick values side-by-side with the axial/
         // lateral/yaw values actually sent to Drive.setPower(), so a sign/mapping bug

@@ -202,7 +202,7 @@ public class LimeLightBasic extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setPose(startPose);
 
-        intake = hardwareMap.get(DcMotor.class, "intake");
+        intake.init(hardwareMap, "intake");
 
         state = State.SWEEP;
         resetSweep();
@@ -543,7 +543,7 @@ public class LimeLightBasic extends OpMode {
     // mechanism calls (e.g. a ServoClass or DcMotor mechanism instance)
     // before this auto can actually collect anything.
     private void startIntake() {
-        intake.setMotorSpeed(1.0);
+        intake.setMotorSpeed(-1.0);
     }
 
     private void stopIntake() {

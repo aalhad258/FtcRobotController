@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
+import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -33,13 +34,13 @@ public class DeterminatePositions extends OpMode {
             new Pose(0, 0, Math.toRadians(90));
 
     private final Pose point1 =
-            new Pose(20, 20, Math.toRadians(90));
+            new Pose(0, 20, Math.toRadians(90));
 
     private final Pose point2 =
-            new Pose(40, 40, Math.toRadians(90));
+            new Pose(20, 20, Math.toRadians(0));
 
     private final Pose point3 =
-            new Pose(20, 20, Math.toRadians(90));
+            new Pose(20, 0, Math.toRadians(270));
 
     private final Pose endPose =
             new Pose(0, 0, Math.toRadians(90));
@@ -51,15 +52,17 @@ public class DeterminatePositions extends OpMode {
         sPath = follower.pathBuilder()
 
                 // First curve: (0,0) → (5,10) → (10,15)
-                .addPath(new BezierCurve(
+                .addPath(new BezierLine(
                         startPose,
-                        point1,
-                        point2
+                        point1
                 ))
 
-                // Second curve: (10,15) → (5,20) → (0,25)
-                .addPath(new BezierCurve(
+                .addPath(new BezierLine(
                         point2,
+                        point3
+                ))
+
+                .addPath(new BezierLine(
                         point3,
                         endPose
                 ))

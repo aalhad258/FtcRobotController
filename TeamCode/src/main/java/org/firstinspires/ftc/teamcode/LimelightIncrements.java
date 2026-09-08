@@ -9,10 +9,12 @@ import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.hardware.DcMotorController;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.mechanism.Blob;
+import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.ArrayList;
@@ -129,6 +131,7 @@ public class LimelightIncrements extends OpMode {
         PATH_TO_BALL,
         DONE
     }
+    private DcMotor intake = new DcMotor();
 
     private State state;
     private double targetAngle;
@@ -155,6 +158,7 @@ public class LimelightIncrements extends OpMode {
         limelight3A = hardwareMap.get(Limelight3A.class, "limelight");
         limelight3A.pipelineSwitch(0);
         blobResults = new ArrayList<>();
+        intake.init(hardwareMap, "intake");
 
         follower = Constants.createFollower(hardwareMap);
         follower.setPose(startPose);
@@ -453,10 +457,10 @@ public class LimelightIncrements extends OpMode {
     // --- STUB METHODS: no physical intake mechanism wired up yet -- see the
     // identical note in LimeLightBasic.java / LimeLightBasicDist.java. ---
     private void startIntake() {
-
+        intake.setMotorSpeed(-1.0);
     }
 
     private void stopIntake() {
-
+        intake.setMotorSpeed(0.0);
     }
 }
