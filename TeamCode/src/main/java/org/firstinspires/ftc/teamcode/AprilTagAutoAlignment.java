@@ -140,7 +140,7 @@ public class AprilTagAutoAlignment extends OpMode {
         // Deadzone of 0.3 on the trigger so a barely-touched trigger doesn't
         // accidentally engage auto-align.
         if (gamepad1.left_trigger > 0.3) {
-            if (atlimelight.hasTag(11) && atlimelight.hasValidResult()) {
+            if (atlimelight.hasTag(0) && atlimelight.hasValidResult()) {
                 error = goalX - atlimelight.getTx();
 
                 if (Math.abs(error) < angleTolerance) {
