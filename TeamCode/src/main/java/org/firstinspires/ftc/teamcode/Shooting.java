@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 
@@ -34,13 +35,23 @@ public class Shooting extends OpMode {
     // =========================================================
 
     // Fixed shooting angle
-    static final double SHOOTING_ANGLE = 67.8; // degrees
+    static final double SHOOTING_ANGLE_DEG = 70.8;
+    static final double SHOOTING_ANGLE_RAD = Math.toRadians(SHOOTING_ANGLE_DEG);
 
-    // HIVE target height range
-    static final double HIVE_HEIGHT = 55; // inches
+    // Geometry heights (in inches)
+    static final double HIVE_HEIGHT = 55.0;      // Target height in inches
+    static final double SHOOTER_HEIGHT = 10.0;   // Height of flywheel axle off ground in inches
 
-    // goBILDA 6000 RPM Motor (1:1 gear ratio = 28.0 ticks/revolution)
-    static final double TICKS_PER_REV = 28.0;
+    // Flywheel mechanical specs
+    static final double WHEEL_RADIUS_METERS = 0.036; // 72mm diameter wheel (36mm radius)
+    static final double TICKS_PER_REV = 28.0;         // goBILDA 6000 RPM (1:1) motor
+
+    // Tuned PIDF parameters for high-RPM / low-CPR 1:1 motor
+    // F = 32767 / (6000 RPM / 60 * 28 ticks/rev) = 11.7
+    static final double FLYWHEEL_P = 2.0;
+    static final double FLYWHEEL_I = 0.0;
+    static final double FLYWHEEL_D = 0.5;
+    static final double FLYWHEEL_F = 11.7;
 
     // Toggle variables for shooter control
     private boolean shooterActive = false;
@@ -96,6 +107,15 @@ public class Shooting extends OpMode {
         shooter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
+        // Apply tuned PIDF coefficients to resolve 3400 RPM jump issue
+        PIDFCoefficients flywheelPIDF = new PIDFCoefficients(
+                FLYWHEEL_P,
+                FLYWHEEL_I,
+                FLYWHEEL_D,
+                FLYWHEEL_F
+        );
+        shooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, flywheelPIDF);
+
 
         // -------------------------
         // PINPOINT
@@ -124,6 +144,8 @@ public class Shooting extends OpMode {
 
         telemetry.addLine("ShootDriveTest: init complete");
         telemetry.update();
+
+        pinpoint.setPosition(currentPose);
     }
 
 
@@ -197,7 +219,7 @@ public class Shooting extends OpMode {
             double targetTicksPerSec = (calculatedRPM / 60.0) * TICKS_PER_REV;
 
             // Command closed-loop PID velocity
-            shooter.setVelocity(-targetTicksPerSec);
+            shooter.setVelocity(targetTicksPerSec);
         } else {
             calculatedRPM = 0.0;
             shooter.setVelocity(0.0);
@@ -255,7 +277,7 @@ public class Shooting extends OpMode {
         telemetry.addData(
                 "Shooting Angle",
                 "%.2f deg",
-                SHOOTING_ANGLE
+                SHOOTING_ANGLE_DEG
         );
 
         telemetry.addData(
@@ -284,12 +306,31 @@ public class Shooting extends OpMode {
             double robotY,
             double robotHeading
     ) {
+        // Horizontal distance to target (converted to meters)
+        double dx = 45.0 - robotX;
+        double dy = 0.0 - robotY;
+        double shootX = 0.0254 * Math.hypot(dx, dy);
 
-        double shootX = 0.0254 * Math.sqrt((60 - robotX)*(60 - robotX) + (10 - robotY)*(10 - robotY));
-        double velocity = Math.sqrt(9.81 * shootX * shootX / (2*Math.cos(Math.toRadians(67.8))*Math.cos(Math.toRadians(67.8))*(shootX*Math.tan(Math.toRadians(67.8)) - HIVE_HEIGHT * 0.0254)));
-        double w = velocity * 60 / (0.072 * 2 * 3.1415);
+        // Vertical displacement delta (converted to meters)
+        double deltaY = (HIVE_HEIGHT - SHOOTER_HEIGHT) * 0.0254;
 
-        // Returns target RPM (w)
-        return w*5;
+        // Kinematic trajectory formula: v = sqrt( (g * x^2) / (2 * cos^2(theta) * (x * tan(theta) - y)) )
+        double cosTheta = Math.cos(SHOOTING_ANGLE_RAD);
+        double tanTheta = Math.tan(SHOOTING_ANGLE_RAD);
+
+        double denominator = 2 * cosTheta * cosTheta * (shootX * tanTheta - deltaY);
+
+        // Safety check to avoid NaN/negative square roots if too close/far
+        if (denominator <= 0) {
+            return 0.0;
+        }
+
+        double velocity = Math.sqrt((9.81 * shootX * shootX) / denominator);
+
+        // Convert exit linear velocity (m/s) to target RPM
+        // v = w * r  =>  w = v / r (rad/s)  =>  RPM = (v / r) * (60 / 2pi)
+        double targetRPM = (velocity / WHEEL_RADIUS_METERS) * (60.0 / (2.0 * Math.PI));
+
+        return targetRPM * 2.5;
     }
 }
