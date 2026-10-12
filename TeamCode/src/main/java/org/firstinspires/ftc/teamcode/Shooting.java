@@ -39,7 +39,7 @@ public class Shooting extends OpMode {
     static final double SHOOTING_ANGLE_RAD = Math.toRadians(SHOOTING_ANGLE_DEG);
 
     // Geometry heights (in inches)
-    static final double HIVE_HEIGHT = 55.0;      // Target height in inches
+    static final double HIVE_HEIGHT = 63.0;      // Target height in inches
     static final double SHOOTER_HEIGHT = 10.0;   // Height of flywheel axle off ground in inches
 
     // Flywheel mechanical specs
@@ -51,7 +51,7 @@ public class Shooting extends OpMode {
     static final double FLYWHEEL_P = 2.0;
     static final double FLYWHEEL_I = 0.0;
     static final double FLYWHEEL_D = 0.5;
-    static final double FLYWHEEL_F = 11.7;
+    static final double FLYWHEEL_F = 10.6;
 
     // Toggle variables for shooter control
     private boolean shooterActive = false;

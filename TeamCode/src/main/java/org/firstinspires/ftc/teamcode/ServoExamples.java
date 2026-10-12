@@ -28,7 +28,8 @@ import org.firstinspires.ftc.teamcode.mechanism.ServoClass;
 @TeleOp
 public class ServoExamples extends OpMode {
     ServoClass servo = new ServoClass();
-    double leftTrigger, rightTrigger;
+    double lastUp = 0;
+    double position = 1;
 
     @Override
     public void init() {
@@ -41,19 +42,22 @@ public class ServoExamples extends OpMode {
 
     @Override
     public void loop() {
-        leftTrigger = gamepad1.left_trigger;
-        rightTrigger = gamepad1.right_trigger;
-
-        servo.setServoPos(leftTrigger);
-        servo.setServoRot(rightTrigger);
+        if(gamepad1.dpad_up && ((getRuntime() - lastUp) > 0.5)) {
+            position -= 0.05;
+            lastUp = getRuntime();
+        }
+        if (gamepad1.dpad_down && ((getRuntime() - lastUp) > 0.5)) {
+            position += 0.05;
+            lastUp = getRuntime();
+        }
+        servo.setServoPos(position);
 
         // --- ADDED TELEMETRY: the original OpMode had no telemetry at all -- this
         // makes each trigger's raw value and the resulting commanded servo action
         // visible so it's obvious which physical servo should be responding to which
         // trigger, and by how much, without having to watch the hardware directly ---
-        telemetry.addData("left_trigger (-> positional servo)", leftTrigger);
-        telemetry.addData("right_trigger (-> continuous-rotation servo)", rightTrigger);
         telemetry.addData("loop runtime (s)", getRuntime());
+        telemetry.addData("position", position);
         telemetry.update();
     }
 }

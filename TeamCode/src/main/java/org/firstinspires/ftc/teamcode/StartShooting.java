@@ -44,7 +44,7 @@ public class StartShooting extends OpMode {
     static final double SHOOTING_ANGLE_RAD =
             Math.toRadians(SHOOTING_ANGLE_DEG);
 
-    static final double HIVE_HEIGHT = 55.0;
+    static final double HIVE_HEIGHT = 63.0;
     static final double SHOOTER_HEIGHT = 10.0;
 
     static final double WHEEL_RADIUS_METERS = 0.036;

@@ -24,7 +24,7 @@ public class ServoClass {
 
     public void init(HardwareMap hwMap) {
         servoPos = hwMap.get(Servo.class, "servo_pos");
-        servoRot = hwMap.get(CRServo.class, "servo_rot");
+        //servoRot = hwMap.get(CRServo.class, "servo_rot");
         // Remaps the [0.0, 1.0] input range accepted by setServoPos() below
         // onto the PHYSICAL [0.5, 1.0] portion of the servo's raw travel --
         // i.e. restricts usable motion to the servo's midpoint-to-full-travel
@@ -34,7 +34,7 @@ public class ServoClass {
         // real angular travel (commonly used to protect a mechanism from
         // over-rotating past a safe limit, or to compensate for how the
         // servo horn/linkage is physically mounted).
-        servoPos.scaleRange(0.5, 1.0); // set range from midpoint to 180
+        servoPos.scaleRange(0.0, 1.0); // set range from midpoint to 180
         servoPos.setDirection(Servo.Direction.REVERSE);
     }
 
