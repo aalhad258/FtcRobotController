@@ -211,8 +211,8 @@ public class Constants {
             // wrong offset here causes position error that GROWS with
             // rotation (robot position "swims" as it turns even if it isn't
             // actually translating).
-            .forwardPodY(-6.5)
-            .strafePodX(2)
+            .forwardPodY(-5)
+            .strafePodX(0)
             .distanceUnit(DistanceUnit.INCH)
             // hardwareMap device name for the Pinpoint computer itself (must
             // match the name configured in the Driver Station/Robot Controller
