@@ -17,6 +17,6 @@ public class IntakeTest extends OpMode {
 
     @Override
     public void loop() {
-        intake.setMotorSpeed(-1);
+        intake.setMotorSpeed(1);
     }
 }

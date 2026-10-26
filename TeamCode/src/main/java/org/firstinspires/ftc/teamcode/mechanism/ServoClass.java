@@ -22,8 +22,8 @@ public class ServoClass {
     private Servo servoPos;
     private CRServo servoRot;
 
-    public void init(HardwareMap hwMap) {
-        servoPos = hwMap.get(Servo.class, "servo_pos");
+    public void init(HardwareMap hwMap, String name) {
+        servoPos = hwMap.get(Servo.class, name);
         //servoRot = hwMap.get(CRServo.class, "servo_rot");
         // Remaps the [0.0, 1.0] input range accepted by setServoPos() below
         // onto the PHYSICAL [0.5, 1.0] portion of the servo's raw travel --
