@@ -10,43 +10,41 @@ public class TurretMechanism {
 
     private DcMotorEx turret;
 
-    private double kP = 0.0001;
-    private double kD = 0.0;
+    // Encoder and gearing
+    private static final double MOTOR_TICKS_PER_REV = 537.7;
+    private static final double TURRET_GEAR_RATIO = 2.75;
+
+    private static final double TICKS_PER_TURRET_REV =
+            MOTOR_TICKS_PER_REV * TURRET_GEAR_RATIO;
+
+    // PID constants
+    private double kP = 0.005;
+    private double kD = 0.0001;
 
     private double lastError = 0.0;
     private double power = 0.0;
 
     private static final double MAX_POWER = 0.20;
-    private static final double SEARCH_POWER = 0.15;
-    private static final double ANGLE_TOLERANCE = 0.2;
-
-    private static final double SWEEP_SECONDS = 2.0;
+    private static final double ANGLE_TOLERANCE = 0.5;
 
     private final ElapsedTime timer = new ElapsedTime();
-    private final ElapsedTime searchTimer = new ElapsedTime();
-
-    // Search states
-    private enum SearchState {
-        SWEEP_OUT,
-        RETURN_HOME,
-        FINISHED
-    }
-
-    private SearchState searchState = SearchState.SWEEP_OUT;
-
-    private boolean searching = true;
 
     public void init(HardwareMap hwMap) {
+
         turret = hwMap.get(DcMotorEx.class, "turret");
 
-        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        turret.setDirection(DcMotor.Direction.FORWARD);
         turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        turret.setPower(0.0);
 
-        searchState = SearchState.SWEEP_OUT;
-        searching = true;
+        // IMPORTANT:
+        // Physically point the turret straight forward before initializing.
+        // This establishes the encoder's zero position.
+        turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        searchTimer.reset();
+        turret.setPower(0);
+
+        lastError = 0;
         timer.reset();
     }
 
@@ -66,31 +64,41 @@ public class TurretMechanism {
         return kD;
     }
 
-    public void resetTimer() {
-        timer.reset();
-        searchTimer.reset();
+    // Read encoder and convert ticks into turret degrees
+    public double getTurretPositionDegrees() {
+
+        return (turret.getCurrentPosition() / TICKS_PER_TURRET_REV) * 360.0;
     }
 
-    /**
-     * Track a visible AprilTag using its TX angle.
-     */
-    public void update(double tx) {
-        searching = false;
+    // Continuously aim the turret at a desired angle relative to the robot
+    public void update(double desiredAngle) {
 
         double deltaTime = timer.seconds();
         timer.reset();
 
-        double error = -tx;
+        double actualAngle = getTurretPositionDegrees();
 
-        double pTerm = error * kP;
-        double dTerm = 0.0;
+        // Difference between desired and actual turret angles
+        double error = desiredAngle - actualAngle;
 
-        if (deltaTime > 0.0) {
-            dTerm = ((error - lastError) / deltaTime) * kD;
+        // Normalize error to [-180, 180]
+        error = Math.toDegrees(
+                Math.atan2(
+                        Math.sin(Math.toRadians(error)),
+                        Math.cos(Math.toRadians(error))
+                )
+        );
+
+        double pTerm = kP * error;
+
+        double dTerm = 0;
+
+        if (deltaTime > 0.001) {
+            dTerm = kD * (error - lastError) / deltaTime;
         }
 
         if (Math.abs(error) < ANGLE_TOLERANCE) {
-            power = 0.0;
+            power = 0;
         } else {
             power = Range.clip(
                     pTerm + dTerm,
@@ -100,64 +108,11 @@ public class TurretMechanism {
         }
 
         turret.setPower(power);
+
         lastError = error;
     }
 
-    /**
-     * Sweep out, return to the starting position, and stop.
-     *
-     * The OpMode must keep calling this method while searching.
-     */
-    public void searchForTag() {
-        if (!searching) {
-            searching = true;
-            searchState = SearchState.SWEEP_OUT;
-            searchTimer.reset();
-        }
-
-        switch (searchState) {
-
-            case SWEEP_OUT:
-                if (searchTimer.seconds() >= SWEEP_SECONDS) {
-                    turret.setPower(0.0);
-
-                    searchState = SearchState.RETURN_HOME;
-                    searchTimer.reset();
-                } else {
-                    // This sign was selected for your previously
-                    // observed correct physical search direction.
-                    turret.setPower(-SEARCH_POWER);
-                }
-                break;
-
-            case RETURN_HOME:
-                if (searchTimer.seconds() >= SWEEP_SECONDS) {
-                    turret.setPower(0.0);
-
-                    searchState = SearchState.FINISHED;
-                    searching = false;
-                } else {
-                    // Reverse direction to return toward the start.
-                    turret.setPower(SEARCH_POWER);
-                }
-                break;
-
-            case FINISHED:
-                turret.setPower(0.0);
-                searching = false;
-                break;
-        }
-    }
-
-    public boolean isSearching() {
-        return searching;
-    }
-
-    public double getTurretPositionDegrees() {
-        return turret.getCurrentPosition();
-    }
-
     public void stop() {
-        turret.setPower(0.0);
+        turret.setPower(0);
     }
 }
