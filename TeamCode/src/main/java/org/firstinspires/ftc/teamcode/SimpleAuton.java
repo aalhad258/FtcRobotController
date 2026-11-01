@@ -25,8 +25,6 @@ public class SimpleAuton extends OpMode {
     private final Drive drive = new Drive();
     private final DcMotor intake = new DcMotor();
 
-    private PinpointPathing pathing;
-
     private DcMotorEx shooter;
 
     private ElapsedTime timer = new ElapsedTime();
@@ -83,19 +81,6 @@ public class SimpleAuton extends OpMode {
         drive.init(hardwareMap);
 
         intake.init(hardwareMap, "intake");
-
-        pathing = new PinpointPathing();
-
-        pathing.init(
-                hardwareMap,
-                new Pose2D(
-                        DistanceUnit.INCH,
-                        8,
-                        96,
-                        AngleUnit.DEGREES,
-                        0
-                )
-        );
 
         shooter = hardwareMap.get(
                 DcMotorEx.class,
@@ -244,8 +229,6 @@ public class SimpleAuton extends OpMode {
     // SHOOTING CALCULATION
 
     private double calculateShot() {
-
-        Pose2D pose = pathing.getCurrentPose();
 
         double dx = 0;
 
