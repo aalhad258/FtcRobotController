@@ -8,12 +8,12 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 // SHOOTER (turret not mounted yet) - re-enable when it is
-// import com.qualcomm.robotcore.hardware.DcMotorEx;
-// import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+ import com.qualcomm.robotcore.hardware.DcMotorEx;
+ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 import org.firstinspires.ftc.teamcode.mechanism.AprilTagLimelight;
 // INTAKE DISABLED - re-enable when it is wired up
-// import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
+ import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous
@@ -26,10 +26,10 @@ public class StartShooting extends OpMode {
     private Follower follower;
 
     // INTAKE DISABLED
-    // DcMotor intake = new DcMotor();
+     DcMotor intake = new DcMotor();
 
     // SHOOTER DISABLED (turret not mounted)
-    // DcMotorEx shooter;
+     DcMotorEx shooter;
 
     private ElapsedTime shootTimer;
     private boolean shootTimerStarted = false;
@@ -43,7 +43,7 @@ public class StartShooting extends OpMode {
 
     // Simulated hardware values (telemetry only)
     private double simTargetRPM = 0.0;
-    private double simIntakePower = 0.0;
+    private double simIntakePower = 1.0;
     private String shotMessage = "";
     private String postShotMessage = "";
     private String routeMessage = "";
@@ -99,10 +99,10 @@ public class StartShooting extends OpMode {
     static final double TICKS_PER_REV = 28.0;
 
     // Tuned PIDF parameters (only needed once shooter is mounted)
-    // static final double FLYWHEEL_P = 2.0;
-    // static final double FLYWHEEL_I = 0.0;
-    // static final double FLYWHEEL_D = 0.5;
-    // static final double FLYWHEEL_F = 11.7;
+     static final double FLYWHEEL_P = 2.0;
+     static final double FLYWHEEL_I = 0.0;
+     static final double FLYWHEEL_D = 0.5;
+     static final double FLYWHEEL_F = 11.7;
 
     // Fake shoot duration (was 10 s with the real flywheel)
     static final double FAKE_SHOOT_SECONDS = 5.0;
@@ -270,27 +270,27 @@ public class StartShooting extends OpMode {
         // -------------------------
         // SHOOTER (DISABLED)
         // -------------------------
-        // shooter = hardwareMap.get(DcMotorEx.class, "shooter");
-        //
-        // shooter.setMode(
-        //         com.qualcomm.robotcore.hardware.DcMotor.RunMode.STOP_AND_RESET_ENCODER
-        // );
-        // shooter.setMode(
-        //         com.qualcomm.robotcore.hardware.DcMotor.RunMode.RUN_USING_ENCODER
-        // );
-        //
-        // PIDFCoefficients flywheelPIDF =
-        //         new PIDFCoefficients(
-        //                 FLYWHEEL_P,
-        //                 FLYWHEEL_I,
-        //                 FLYWHEEL_D,
-        //                 FLYWHEEL_F
-        //         );
-        //
-        // shooter.setPIDFCoefficients(
-        //         com.qualcomm.robotcore.hardware.DcMotor.RunMode.RUN_USING_ENCODER,
-        //         flywheelPIDF
-        // );
+         shooter = hardwareMap.get(DcMotorEx.class, "shooter");
+
+         shooter.setMode(
+                 com.qualcomm.robotcore.hardware.DcMotor.RunMode.STOP_AND_RESET_ENCODER
+         );
+         shooter.setMode(
+                 com.qualcomm.robotcore.hardware.DcMotor.RunMode.RUN_USING_ENCODER
+         );
+
+         PIDFCoefficients flywheelPIDF =
+                 new PIDFCoefficients(
+                         FLYWHEEL_P,
+                         FLYWHEEL_I,
+                         FLYWHEEL_D,
+                         FLYWHEEL_F
+                 );
+
+         shooter.setPIDFCoefficients(
+                 com.qualcomm.robotcore.hardware.DcMotor.RunMode.RUN_USING_ENCODER,
+                 flywheelPIDF
+         );
 
         setPathState(PathState.DRIVE);
 
@@ -453,8 +453,8 @@ public class StartShooting extends OpMode {
                             currentPose.getHeading()
                     );
 
-                    // double targetTicksPerSec = (simTargetRPM / 60.0) * TICKS_PER_REV;
-                    // shooter.setVelocity(targetTicksPerSec);
+                     double targetTicksPerSec = (simTargetRPM / 60.0) * TICKS_PER_REV;
+                     shooter.setVelocity(targetTicksPerSec);
 
                     shotMessage = "FAKE SHOOTING #1 at "
                             + Math.round(simTargetRPM) + " RPM";
@@ -703,8 +703,8 @@ public class StartShooting extends OpMode {
                             currentPose.getHeading()
                     );
 
-                    // double targetTicksPerSec = (simTargetRPM / 60.0) * TICKS_PER_REV;
-                    // shooter.setVelocity(targetTicksPerSec);
+                     double targetTicksPerSec = (simTargetRPM / 60.0) * TICKS_PER_REV;
+                     shooter.setVelocity(targetTicksPerSec);
 
                     shotMessage = "FAKE SHOOTING #2 at "
                             + Math.round(simTargetRPM) + " RPM";
@@ -715,7 +715,7 @@ public class StartShooting extends OpMode {
 
                 if (shootTimer.seconds() >= FAKE_SHOOT_SECONDS) {
 
-                    // shooter.setVelocity(0);
+                     shooter.setVelocity(0);
                     simTargetRPM = 0.0;
                     shotMessage = "Fake shot #2 done";
 
@@ -744,7 +744,7 @@ public class StartShooting extends OpMode {
                 }
 
                 // Intake on while driving to the flower
-                // intake.setMotorSpeed(-1.0);
+                 intake.setMotorSpeed(-1.0);
                 simIntakePower = -1.0;
 
                 setPathState(PathState.TO_FLOWER);
@@ -884,8 +884,8 @@ public class StartShooting extends OpMode {
                             currentPose.getHeading()
                     );
 
-                    // double targetTicksPerSec = (simTargetRPM / 60.0) * TICKS_PER_REV;
-                    // shooter.setVelocity(targetTicksPerSec);
+                     double targetTicksPerSec = (simTargetRPM / 60.0) * TICKS_PER_REV;
+                     shooter.setVelocity(targetTicksPerSec);
 
                     shotMessage = "FAKE SHOOTING #3 at "
                             + Math.round(simTargetRPM) + " RPM";
@@ -896,7 +896,7 @@ public class StartShooting extends OpMode {
 
                 if (shootTimer.seconds() >= FAKE_SHOOT_SECONDS) {
 
-                    // shooter.setVelocity(0);
+                     shooter.setVelocity(0);
                     simTargetRPM = 0.0;
                     shotMessage = "Fake shot #3 done";
 
