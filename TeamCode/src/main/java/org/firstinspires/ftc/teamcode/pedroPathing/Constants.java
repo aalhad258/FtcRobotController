@@ -161,10 +161,10 @@ public class Constants {
 
             // See the O-vs-X roller note above: these hardwareMap names are
             // intentionally cross-mapped, not a 1:1 physical-to-logical match.
-            .rightFrontMotorName("rightFrontMotor")
-            .rightRearMotorName("rightBackMotor")
-            .leftRearMotorName("leftBackMotor")
-            .leftFrontMotorName("leftFrontMotor")
+            .rightFrontMotorName("rfm")
+            .rightRearMotorName("rbm")
+            .leftRearMotorName("lbm")
+            .leftFrontMotorName("lfm")
 
             // Motor spin directions as PedroPathing sees them (post name-swap
             // above). These were determined empirically by running the

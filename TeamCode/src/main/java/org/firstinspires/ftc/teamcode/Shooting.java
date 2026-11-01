@@ -52,7 +52,7 @@ public class Shooting extends OpMode {
     // SHOOTER CONFIGURATION
     // =========================================================
 
-    static final double SHOOTING_ANGLE_DEG = 70.8;
+    static final double SHOOTING_ANGLE_DEG = 37.8;
     static final double SHOOTING_ANGLE_RAD =
             Math.toRadians(SHOOTING_ANGLE_DEG);
 
