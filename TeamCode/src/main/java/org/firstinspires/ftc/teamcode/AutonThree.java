@@ -30,8 +30,7 @@ public class AutonThree extends OpMode {
 
     private DcMotorEx shooter;
 
-    private final AprilTagLimelight atlimelight =
-            new AprilTagLimelight();
+    private final AprilTagLimelight atlimelight = new AprilTagLimelight();
 
     private ElapsedTime shootTimer;
 
@@ -42,12 +41,15 @@ public class AutonThree extends OpMode {
 
     private String shotMessage = "";
     private String routeMessage = "";
+    private String shotWarning = "";
 
     private boolean sawTarget1Tag = false;
 
     private Pose activeTargetPose;
 
     private int shotNumber = 1;
+
+    private double targetTicksPerSecond = 0;
 
     private PathState afterShootState;
 
@@ -59,7 +61,7 @@ public class AutonThree extends OpMode {
     private static final double HIVE_HEIGHT = 59.55;
     private static final double SHOOTER_HEIGHT = 8.0;
 
-    private static final double SHOOTING_ANGLE_DEG = 37.8;
+    private static final double SHOOTING_ANGLE_DEG = 60.8;
 
     private static final double SHOOTING_ANGLE_RAD =
             Math.toRadians(SHOOTING_ANGLE_DEG);
@@ -72,10 +74,25 @@ public class AutonThree extends OpMode {
     private static final double FLYWHEEL_D = 0.5;
     private static final double FLYWHEEL_F = 11.7;
 
-    private static final double SHOOTER_SPINUP_SECONDS = 1.5;
+    // Your original fudge factor on the physics result.
+    private static final double RPM_FUDGE = 2.5;
+
+    // Used when the physics says the shot is impossible from where the robot
+    // is standing (target too close for the launch angle). TUNE THIS.
+    private static final double FALLBACK_RPM = 3000.0;
+
+    // 6000 rpm motor with 28 tick/rev encoder = 2800 ticks/s absolute max.
+    private static final double MAX_TICKS_PER_SECOND = 2800.0;
+
+    private static final double SHOOTER_SPINUP_SECONDS = 1.5;      // minimum wait
+    private static final double SHOOTER_SPINUP_MAX_SECONDS = 3.0;  // give up waiting for speed
+    private static final double SHOOTER_SPEED_TOLERANCE = 0.05;    // 5%
     private static final double FEED_SECONDS = 5.0;
 
     private static final double INTAKE_POWER = -1.0;
+
+    // Robot center can't reach the wall (y = 144). Stay this far inside it.
+    private static final double WALL_SAFE_Y = 135.0;
 
 
     // =========================================================
@@ -85,38 +102,23 @@ public class AutonThree extends OpMode {
     private final Pose startPose =
             new Pose(8, 96, Math.toRadians(0));
 
-
-    // ---------------------------------------------------------
-    // FIRST SHOOTING POSITION AND TARGET
-    // ---------------------------------------------------------
-
     private final Pose shootPose1 =
             new Pose(13, 96, Math.toRadians(0));
 
     private final Pose target1Pose =
             new Pose(55, 96, 0);
 
-
-    // ---------------------------------------------------------
-    // GARDEN
-    // ---------------------------------------------------------
-
     private final Pose gardenStartPose =
             new Pose(8, 96, Math.toRadians(90));
 
     private final Pose gardenForwardPose =
-            new Pose(8, 144, Math.toRadians(0));
+            new Pose(8, WALL_SAFE_Y, Math.toRadians(0));
 
     private final Pose farSidePose =
-            new Pose(131, 144, Math.toRadians(0));
+            new Pose(131, WALL_SAFE_Y, Math.toRadians(0));
 
     private final Pose gardenPose =
-            new Pose(8, 144, Math.toRadians(90));
-
-
-    // ---------------------------------------------------------
-    // SECOND SHOOTING POSITION AND TARGET
-    // ---------------------------------------------------------
+            new Pose(8, WALL_SAFE_Y, Math.toRadians(90));
 
     private final Pose shootPose2 =
             new Pose(131, 96, Math.toRadians(180));
@@ -130,31 +132,18 @@ public class AutonThree extends OpMode {
     // =========================================================
 
     public enum PathState {
-
         DRIVE_TO_SHOOT1,
-
         ALIGN_SHOT,
-
         SHOOT,
-
         BACK_TO_START,
-
         CHECK_TAG,
-
         TURN_TO_GARDEN,
-
         DRIVE_TO_GARDEN,
-
         CHOOSE_SHOT2,
-
         RETURN_TO_SHOOT1,
-
         TURN_TO_SHOOT2_LANE,
-
         DRIVE_TO_FAR_SIDE,
-
         DRIVE_TO_SHOOT2,
-
         DONE
     }
 
@@ -162,12 +151,8 @@ public class AutonThree extends OpMode {
 
 
     // =========================================================
-    // POSE CONVERSION
+    // POSE CONVERSION (Pedro Pose -> FTC Pose2D)
     // =========================================================
-
-    // Your waypoint variables use Pedro's Pose class.
-    // PinpointPathing uses the FTC SDK's Pose2D class.
-    // This converts between them without changing coordinates.
 
     private Pose2D convertPose(Pose pose) {
 
@@ -192,32 +177,17 @@ public class AutonThree extends OpMode {
 
         atlimelight.init(hardwareMap, 0);
 
-        // Initialize custom Pinpoint pathing.
-
-        pathing.init(
-                hardwareMap,
-                convertPose(startPose)
-        );
+        pathing.init(hardwareMap, convertPose(startPose));
 
         shootTimer = new ElapsedTime();
 
-
-        // Shooter initialization
-
-        shooter = hardwareMap.get(
-                DcMotorEx.class,
-                "shooter"
-        );
+        shooter = hardwareMap.get(DcMotorEx.class, "shooter");
 
         shooter.setMode(
-                com.qualcomm.robotcore.hardware.DcMotor.RunMode
-                        .STOP_AND_RESET_ENCODER
-        );
+                com.qualcomm.robotcore.hardware.DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
         shooter.setMode(
-                com.qualcomm.robotcore.hardware.DcMotor.RunMode
-                        .RUN_USING_ENCODER
-        );
+                com.qualcomm.robotcore.hardware.DcMotor.RunMode.RUN_USING_ENCODER);
 
         PIDFCoefficients flywheelPIDF =
                 new PIDFCoefficients(
@@ -228,15 +198,13 @@ public class AutonThree extends OpMode {
                 );
 
         shooter.setPIDFCoefficients(
-                com.qualcomm.robotcore.hardware.DcMotor.RunMode
-                        .RUN_USING_ENCODER,
+                com.qualcomm.robotcore.hardware.DcMotor.RunMode.RUN_USING_ENCODER,
                 flywheelPIDF
         );
 
         shooter.setVelocity(0);
 
         intake.setMotorSpeed(0);
-
 
         activeTargetPose = target1Pose;
 
@@ -247,6 +215,23 @@ public class AutonThree extends OpMode {
         setPathState(PathState.DRIVE_TO_SHOOT1);
     }
 
+    /** Keeps reading the Pinpoint during init so the start pose is applied once it's ready. */
+    @Override
+    public void init_loop() {
+
+        pathing.updatePose();
+
+        telemetry.addData("Pinpoint Status", pathing.getPinpointStatus());
+        telemetry.addData("Start Pose Applied", pathing.isPoseApplied());
+
+        Pose2D p = pathing.getCurrentPose();
+
+        telemetry.addData("X", "%.2f", p.getX(DistanceUnit.INCH));
+        telemetry.addData("Y", "%.2f", p.getY(DistanceUnit.INCH));
+        telemetry.addData("Heading", "%.2f", p.getHeading(AngleUnit.DEGREES));
+        telemetry.addLine("Wait for READY + Applied before pressing start.");
+        telemetry.update();
+    }
 
     @Override
     public void start() {
@@ -281,20 +266,23 @@ public class AutonThree extends OpMode {
 
 
     // =========================================================
-    // SHOOTING SEQUENCE
+    // SHOOTING
     // =========================================================
+
+    /** Start the flywheel early so it's at speed when we arrive. */
+    private void spinUpFor(Pose shootFrom, Pose target) {
+
+        targetTicksPerSecond = calculateShot(shootFrom, target);
+
+        shooter.setVelocity(targetTicksPerSecond);
+    }
 
     private void runShootingSequence() {
 
         if (!stateInitialized) {
 
-            double targetRPM = calculateShot(
-                    currentPose,
-                    activeTargetPose
-            );
-
-            double targetTicksPerSecond =
-                    (targetRPM / 60.0) * TICKS_PER_REV;
+            // Recompute from the pose we actually stopped at.
+            targetTicksPerSecond = calculateShot(currentPose, activeTargetPose);
 
             shooter.setVelocity(targetTicksPerSecond);
 
@@ -306,31 +294,19 @@ public class AutonThree extends OpMode {
 
             stateInitialized = true;
 
-            shotMessage = "SHOT " + shotNumber
-                    + " - SPINNING UP";
-
-            telemetry.addData(
-                    "Active Target",
-                    activeTargetPose == target1Pose
-                            ? "TARGET 1"
-                            : "TARGET 2"
-            );
-
-            telemetry.addData(
-                    "Target X",
-                    activeTargetPose.getX()
-            );
-
-            telemetry.addData(
-                    "Target Y",
-                    activeTargetPose.getY()
-            );
+            shotMessage = "SHOT " + shotNumber + " - SPINNING UP";
         }
-
 
         if (!feedingStarted) {
 
-            if (shootTimer.seconds() >= SHOOTER_SPINUP_SECONDS) {
+            double t = shootTimer.seconds();
+
+            boolean atSpeed =
+                    Math.abs(shooter.getVelocity() - targetTicksPerSecond)
+                            <= SHOOTER_SPEED_TOLERANCE * targetTicksPerSecond;
+
+            if ((t >= SHOOTER_SPINUP_SECONDS && atSpeed)
+                    || t >= SHOOTER_SPINUP_MAX_SECONDS) {
 
                 intake.setMotorSpeed(INTAKE_POWER);
 
@@ -338,27 +314,39 @@ public class AutonThree extends OpMode {
 
                 shootTimer.reset();
 
-                shotMessage = "SHOT " + shotNumber
-                        + " - FEEDING";
+                shotMessage = "SHOT " + shotNumber + " - FEEDING";
             }
+
+        } else if (shootTimer.seconds() >= FEED_SECONDS) {
+
+            intake.setMotorSpeed(0);
+
+            shooter.setVelocity(0);
+
+            feedingStarted = false;
+
+            shotMessage = "SHOT " + shotNumber + " COMPLETE";
+
+            setPathState(afterShootState);
+        }
+    }
+
+
+    // =========================================================
+    // PATHING HELPER
+    // =========================================================
+
+    /** Sets the target once on state entry. Returns true when the move is finished. */
+    private boolean driveTo(Pose pose, double timeoutSeconds) {
+
+        if (!stateInitialized) {
+
+            pathing.setTarget(convertPose(pose), timeoutSeconds);
+
+            stateInitialized = true;
         }
 
-        else {
-
-            if (shootTimer.seconds() >= FEED_SECONDS) {
-
-                intake.setMotorSpeed(0);
-
-                shooter.setVelocity(0);
-
-                feedingStarted = false;
-
-                shotMessage = "SHOT " + shotNumber
-                        + " COMPLETE";
-
-                setPathState(afterShootState);
-            }
-        }
+        return !pathing.isBusy();
     }
 
 
@@ -369,94 +357,19 @@ public class AutonThree extends OpMode {
     @Override
     public void loop() {
 
-        // Update Limelight every loop.
-
         atlimelight.update();
 
-        // Get latest Pinpoint pose.
+        // Single Pinpoint read + controller step per loop.
+        // When pathing is idle this just holds the motors at 0.
+        pathing.update();
 
         Pose2D pinpointPose = pathing.getCurrentPose();
 
         currentPose = new Pose(
                 pinpointPose.getX(DistanceUnit.INCH),
                 pinpointPose.getY(DistanceUnit.INCH),
-                Math.toRadians(
-                        pinpointPose.getHeading(AngleUnit.DEGREES)
-                )
+                pinpointPose.getHeading(AngleUnit.RADIANS)
         );
-
-
-        // =====================================================
-        // TELEMETRY
-        // =====================================================
-
-        telemetry.addData("State", pathState);
-
-        telemetry.addData(
-                "Robot X",
-                "%.2f",
-                currentPose.getX()
-        );
-
-        telemetry.addData(
-                "Robot Y",
-                "%.2f",
-                currentPose.getY()
-        );
-
-        telemetry.addData(
-                "Heading",
-                "%.2f degrees",
-                Math.toDegrees(currentPose.getHeading())
-        );
-
-        telemetry.addData(
-                "Pathing State",
-                pathing.getState()
-        );
-
-        telemetry.addData(
-                "Pathing Busy",
-                pathing.isBusy()
-        );
-
-        telemetry.addData(
-                "Error X",
-                "%.2f",
-                pathing.getErrorX()
-        );
-
-        telemetry.addData(
-                "Error Y",
-                "%.2f",
-                pathing.getErrorY()
-        );
-
-        telemetry.addData(
-                "Error Heading",
-                "%.2f",
-                pathing.getErrorH()
-        );
-
-        telemetry.addData(
-                "Target 1 Tag Visible",
-                canSeeTarget1Tag()
-        );
-
-        telemetry.addData(
-                "Saved Tag Result",
-                sawTarget1Tag
-        );
-
-        telemetry.addData(
-                "Shooter Velocity",
-                "%.1f ticks/sec",
-                shooter.getVelocity()
-        );
-
-        telemetry.addData("Shot", shotMessage);
-
-        telemetry.addData("Route", routeMessage);
 
 
         // =====================================================
@@ -465,32 +378,19 @@ public class AutonThree extends OpMode {
 
         switch (pathState) {
 
-
-            // ================================================
-            // 1. DRIVE TO FIRST SHOOTING POSITION
-            // ================================================
-
             case DRIVE_TO_SHOOT1:
 
                 if (!stateInitialized) {
-
-                    pathing.setTarget(
-                            convertPose(shootPose1)
-                    );
-
-                    stateInitialized = true;
+                    spinUpFor(shootPose1, target1Pose);
                 }
 
-                pathing.update();
-
-                if (!pathing.isBusy()) {
+                if (driveTo(shootPose1, 8.0)) {
 
                     activeTargetPose = target1Pose;
 
                     shotNumber = 1;
 
-                    afterShootState =
-                            PathState.BACK_TO_START;
+                    afterShootState = PathState.BACK_TO_START;
 
                     setPathState(PathState.ALIGN_SHOT);
                 }
@@ -498,49 +398,24 @@ public class AutonThree extends OpMode {
                 break;
 
 
-            // ================================================
-            // 2. ALIGN WITH CURRENT TARGET
-            // ================================================
-
             case ALIGN_SHOT:
 
-                // The pathing mechanism already turns to the
-                // heading specified in the shooting pose.
-
+                // Pathing already turned to the heading in the shooting pose.
                 setPathState(PathState.SHOOT);
 
                 break;
 
 
-            // ================================================
-            // 3. SHOOT
-            // ================================================
-
             case SHOOT:
-                intake.setMotorSpeed(-1.0);
+
                 runShootingSequence();
 
                 break;
 
 
-            // ================================================
-            // 4. BACK UP TO START
-            // ================================================
-
             case BACK_TO_START:
 
-                if (!stateInitialized) {
-
-                    pathing.setTarget(
-                            convertPose(startPose)
-                    );
-
-                    stateInitialized = true;
-                }
-
-                pathing.update();
-
-                if (!pathing.isBusy()) {
+                if (driveTo(startPose, 8.0)) {
 
                     setPathState(PathState.CHECK_TAG);
                 }
@@ -548,48 +423,22 @@ public class AutonThree extends OpMode {
                 break;
 
 
-            // ================================================
-            // 5. CHECK TARGET 1 TAG
-            // ================================================
-
             case CHECK_TAG:
 
                 sawTarget1Tag = canSeeTarget1Tag();
 
-                if (sawTarget1Tag) {
-
-                    routeMessage =
-                            "Target 1 tag visible. Will shoot target 1 again.";
-
-                } else {
-
-                    routeMessage =
-                            "Target 1 tag missing. Will shoot target 2.";
-                }
+                routeMessage = sawTarget1Tag
+                        ? "Target 1 tag visible. Will shoot target 1 again."
+                        : "Target 1 tag missing. Will shoot target 2.";
 
                 setPathState(PathState.TURN_TO_GARDEN);
 
                 break;
 
 
-            // ================================================
-            // 6. TURN TOWARD GARDEN
-            // ================================================
-
             case TURN_TO_GARDEN:
 
-                if (!stateInitialized) {
-
-                    pathing.setTarget(
-                            convertPose(gardenStartPose)
-                    );
-
-                    stateInitialized = true;
-                }
-
-                pathing.update();
-
-                if (!pathing.isBusy()) {
+                if (driveTo(gardenStartPose, 4.0)) {
 
                     setPathState(PathState.DRIVE_TO_GARDEN);
                 }
@@ -597,35 +446,17 @@ public class AutonThree extends OpMode {
                 break;
 
 
-            // ================================================
-            // 7. DRIVE TO GARDEN
-            // ================================================
-
             case DRIVE_TO_GARDEN:
-                intake.setMotorSpeed(-1.0);
 
-                if (!stateInitialized) {
+                intake.setMotorSpeed(INTAKE_POWER);
 
-                    pathing.setTarget(
-                            convertPose(gardenPose)
-                    );
-
-                    stateInitialized = true;
-                }
-
-                pathing.update();
-
-                if (!pathing.isBusy()) {
+                if (driveTo(gardenPose, 8.0)) {
 
                     setPathState(PathState.CHOOSE_SHOT2);
                 }
 
                 break;
 
-
-            // ================================================
-            // 8. CHOOSE NEXT TARGET
-            // ================================================
 
             case CHOOSE_SHOT2:
 
@@ -637,8 +468,9 @@ public class AutonThree extends OpMode {
 
                     activeTargetPose = target1Pose;
 
-                    routeMessage =
-                            "Returning to shooting position 1.";
+                    spinUpFor(shootPose1, target1Pose);
+
+                    routeMessage = "Returning to shooting position 1.";
 
                     setPathState(PathState.RETURN_TO_SHOOT1);
 
@@ -646,8 +478,9 @@ public class AutonThree extends OpMode {
 
                     activeTargetPose = target2Pose;
 
-                    routeMessage =
-                            "Driving to shooting position 2.";
+                    spinUpFor(shootPose2, target2Pose);
+
+                    routeMessage = "Driving to shooting position 2.";
 
                     setPathState(PathState.TURN_TO_SHOOT2_LANE);
                 }
@@ -655,24 +488,9 @@ public class AutonThree extends OpMode {
                 break;
 
 
-            // ================================================
-            // 9A. RETURN TO SHOOTING POSITION 1
-            // ================================================
-
             case RETURN_TO_SHOOT1:
 
-                if (!stateInitialized) {
-
-                    pathing.setTarget(
-                            convertPose(shootPose1)
-                    );
-
-                    stateInitialized = true;
-                }
-
-                pathing.update();
-
-                if (!pathing.isBusy()) {
+                if (driveTo(shootPose1, 10.0)) {
 
                     setPathState(PathState.ALIGN_SHOT);
                 }
@@ -680,24 +498,9 @@ public class AutonThree extends OpMode {
                 break;
 
 
-            // ================================================
-            // 9B. TURN TO FACE SHOOTING LANE
-            // ================================================
-
             case TURN_TO_SHOOT2_LANE:
 
-                if (!stateInitialized) {
-
-                    pathing.setTarget(
-                            convertPose(gardenForwardPose)
-                    );
-
-                    stateInitialized = true;
-                }
-
-                pathing.update();
-
-                if (!pathing.isBusy()) {
+                if (driveTo(gardenForwardPose, 4.0)) {
 
                     setPathState(PathState.DRIVE_TO_FAR_SIDE);
                 }
@@ -705,24 +508,9 @@ public class AutonThree extends OpMode {
                 break;
 
 
-            // ================================================
-            // 10. DRIVE TO FAR SIDE
-            // ================================================
-
             case DRIVE_TO_FAR_SIDE:
 
-                if (!stateInitialized) {
-
-                    pathing.setTarget(
-                            convertPose(farSidePose)
-                    );
-
-                    stateInitialized = true;
-                }
-
-                pathing.update();
-
-                if (!pathing.isBusy()) {
+                if (driveTo(farSidePose, 14.0)) {
 
                     setPathState(PathState.DRIVE_TO_SHOOT2);
                 }
@@ -730,34 +518,15 @@ public class AutonThree extends OpMode {
                 break;
 
 
-            // ================================================
-            // 11. DRIVE TO SHOOTING POSITION 2
-            // ================================================
-
             case DRIVE_TO_SHOOT2:
 
-                if (!stateInitialized) {
-
-                    pathing.setTarget(
-                            convertPose(shootPose2)
-                    );
-
-                    stateInitialized = true;
-                }
-
-                pathing.update();
-
-                if (!pathing.isBusy()) {
+                if (driveTo(shootPose2, 10.0)) {
 
                     setPathState(PathState.ALIGN_SHOT);
                 }
 
                 break;
 
-
-            // ================================================
-            // DONE
-            // ================================================
 
             case DONE:
 
@@ -772,58 +541,89 @@ public class AutonThree extends OpMode {
                 break;
         }
 
+
+        // =====================================================
+        // TELEMETRY
+        // =====================================================
+
+        telemetry.addData("State", pathState);
+        telemetry.addData("Pinpoint", pathing.getPinpointStatus());
+
+        telemetry.addData("Robot X", "%.2f", currentPose.getX());
+        telemetry.addData("Robot Y", "%.2f", currentPose.getY());
+        telemetry.addData("Heading", "%.2f deg", Math.toDegrees(currentPose.getHeading()));
+
+        telemetry.addData("Pathing State", pathing.getState());
+        telemetry.addData("Pathing Busy", pathing.isBusy());
+        telemetry.addData("Timed Out", pathing.didTimeOut());
+        telemetry.addData("Err Ahead (X)", "%.2f", pathing.getErrorX());
+        telemetry.addData("Err Left (Y)", "%.2f", pathing.getErrorY());
+        telemetry.addData("Err Heading", "%.2f", pathing.getErrorH());
+
+        telemetry.addData("Target 1 Tag Visible", canSeeTarget1Tag());
+        telemetry.addData("Saved Tag Result", sawTarget1Tag);
+
+        telemetry.addData("Active Target",
+                activeTargetPose == target1Pose ? "TARGET 1" : "TARGET 2");
+        telemetry.addData("Shooter Target", "%.1f ticks/sec", targetTicksPerSecond);
+        telemetry.addData("Shooter Velocity", "%.1f ticks/sec", shooter.getVelocity());
+        telemetry.addData("Shot Warning", shotWarning);
+
+        telemetry.addData("Shot", shotMessage);
+        telemetry.addData("Route", routeMessage);
+
         telemetry.update();
     }
 
 
     // =========================================================
-    // SHOOTING CALCULATION
+    // SHOOTING CALCULATION (returns ticks per second)
     // =========================================================
 
-    private double calculateShot(
-            Pose robotPose,
-            Pose targetPose
-    ) {
+    private double calculateShot(Pose robotPose, Pose targetPose) {
 
-        double dx =
-                targetPose.getX() - robotPose.getX();
+        double dx = targetPose.getX() - robotPose.getX();
+        double dy = targetPose.getY() - robotPose.getY();
 
-        double dy =
-                targetPose.getY() - robotPose.getY();
+        double distanceMeters = 0.0254 * Math.hypot(dx, dy);
 
-        double distanceMeters =
-                0.0254 * Math.hypot(dx, dy);
+        double heightDifference = (HIVE_HEIGHT - SHOOTER_HEIGHT) * 0.0254;
 
-        double heightDifference =
-                (HIVE_HEIGHT - SHOOTER_HEIGHT) * 0.0254;
-
-        double cosTheta =
-                Math.cos(SHOOTING_ANGLE_RAD);
-
-        double tanTheta =
-                Math.tan(SHOOTING_ANGLE_RAD);
+        double cosTheta = Math.cos(SHOOTING_ANGLE_RAD);
+        double tanTheta = Math.tan(SHOOTING_ANGLE_RAD);
 
         double denominator =
                 2 * cosTheta * cosTheta
-                        * (distanceMeters * tanTheta
-                        - heightDifference);
+                        * (distanceMeters * tanTheta - heightDifference);
+
+        double targetRPM;
 
         if (denominator <= 0) {
 
-            return 0.0;
+            // Physically impossible at this angle/distance. Don't leave the
+            // flywheel off -- use a fixed RPM and tell the driver.
+            targetRPM = FALLBACK_RPM;
+
+            shotWarning = String.format(
+                    "Physics shot impossible at %.1f in; using fallback RPM",
+                    distanceMeters / 0.0254);
+
+        } else {
+
+            double velocity =
+                    Math.sqrt((9.81 * distanceMeters * distanceMeters) / denominator);
+
+            targetRPM =
+                    (velocity / WHEEL_RADIUS_METERS)
+                            * (60.0 / (2.0 * Math.PI))
+                            * RPM_FUDGE;
+
+            shotWarning = "";
         }
 
-        double velocity =
-                Math.sqrt(
-                        (9.81 * distanceMeters * distanceMeters)
-                                / denominator
-                );
+        double ticksPerSecond = (targetRPM / 60.0) * TICKS_PER_REV;
 
-        double targetRPM =
-                (velocity / WHEEL_RADIUS_METERS)
-                        * (60.0 / (2.0 * Math.PI));
-
-        return targetRPM * 2.5;
+        return Math.min(ticksPerSecond, MAX_TICKS_PER_SECOND);
     }
 
 

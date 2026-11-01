@@ -40,13 +40,13 @@ public class SimpleAuton extends OpMode {
     private static final double SPINUP_TIME = 1.5;
     private static final double FEED_TIME = 5.0;
 
-    private static final double INTAKE_POWER = -1.0;
+    private static final double INTAKE_POWER = 1.0;
 
     private static final double HIVE_HEIGHT = 59.55;
     private static final double SHOOTER_HEIGHT = 8.0;
 
     private static final double SHOOTING_ANGLE =
-            Math.toRadians(37.8);
+            Math.toRadians(60);
 
     private static final double WHEEL_RADIUS = 0.036;
     private static final double TICKS_PER_REV = 28.0;
@@ -154,7 +154,7 @@ public class SimpleAuton extends OpMode {
             case DRIVE_FORWARD:
 
                 drive.setPower(
-                        1,
+                        -1,
                         0,
                         0,
                         DRIVE_POWER
@@ -247,11 +247,9 @@ public class SimpleAuton extends OpMode {
 
         Pose2D pose = pathing.getCurrentPose();
 
-        double dx =
-                targetPose.getX() - pose.getX(DistanceUnit.INCH);
+        double dx = 0;
 
-        double dy =
-                targetPose.getY() - pose.getY(DistanceUnit.INCH);
+        double dy = 43;
 
         double distanceMeters =
                 0.0254 * Math.hypot(dx, dy);
@@ -279,7 +277,7 @@ public class SimpleAuton extends OpMode {
                 (velocity / WHEEL_RADIUS)
                         * (60.0 / (2.0 * Math.PI));
 
-        return rpm * 2.5;
+        return rpm * 1.8;
     }
 
 
