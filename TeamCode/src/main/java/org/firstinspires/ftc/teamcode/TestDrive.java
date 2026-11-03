@@ -57,11 +57,11 @@ public class TestDrive extends OpMode {
         // Standard FTC gamepad convention: left_stick_y is NEGATIVE when
         // pushed forward, so it's negated to make "push forward" = positive
         // axial (forward) power.
-        double axial = gamepad1.left_stick_y;
-        double lateral = -gamepad1.left_stick_x;
+        double axial = -gamepad1.left_stick_y;
+        double lateral = gamepad1.left_stick_x;
         double yaw = gamepad1.right_stick_x;
 //        drive.setPower(axial, lateral, yaw, 1.0);
-        drive.setPower(0,0,1, 1.0);
+        drive.setPower(axial,lateral,yaw, 1.0);
         telemetry.addData("axial", axial);
         telemetry.addData("lateral", lateral);
         telemetry.addData("yaw", yaw);
