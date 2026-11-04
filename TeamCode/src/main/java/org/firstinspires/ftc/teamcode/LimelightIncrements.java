@@ -8,6 +8,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotorController;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -100,6 +101,8 @@ import java.util.List;
  *      being edited inconsistently with each other, not sweep timing.
  * ============================================================================
  */
+
+@Disabled
 @Autonomous
 public class LimelightIncrements extends OpMode {
     private Limelight3A limelight3A;

@@ -8,12 +8,12 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 // SHOOTER (turret not mounted yet) - re-enable when it is
- import com.qualcomm.robotcore.hardware.DcMotorEx;
- import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 import org.firstinspires.ftc.teamcode.mechanism.AprilTagLimelight;
 // INTAKE DISABLED - re-enable when it is wired up
- import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
+import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous

@@ -125,34 +125,6 @@ public class Constants {
             // wide on curved (non-BezierLine) paths, increase this slightly.
             .centripetalScaling(0.0005);
 
-    /**
-     * ------------------------------------------------------------------
-     *  DRIVETRAIN (MECANUM) CONSTANTS
-     * ------------------------------------------------------------------
-     *  !!! IMPORTANT ROBOT-SPECIFIC DESIGN NOTE !!!
-     *  Our mecanum wheels are mounted in an "O" roller configuration
-     *  (rollers form an O shape when viewed from above) rather than the
-     *  more common "X" configuration. Because of this, the physical
-     *  front-left/front-right/back-left/back-right roles do NOT line up
-     *  1:1 with PedroPathing's expected logical roles the way they would
-     *  on a standard "X" mecanum chassis. To compensate, the hardwareMap
-     *  device names below are DELIBERATELY CROSSED relative to what you'd
-     *  naively expect:
-     *      rightFrontMotorName -> "rightBackMotor"   (physical back wheel)
-     *      rightRearMotorName  -> "rightFrontMotor"  (physical front wheel)
-     *      leftRearMotorName   -> "leftFrontMotor"   (physical front wheel)
-     *      leftFrontMotorName  -> "leftBackMotor"    (physical back wheel)
-     *  This is NOT a bug/typo -- it is the intentional fix for our O-pattern
-     *  roller orientation so that PedroPathing's internal kinematics (which
-     *  assume a standard X pattern) still produce correct strafing/rotation
-     *  behavior. DO NOT "simplify" or "correct" this mapping back to a
-     *  1:1 name match without re-validating strafe direction on the robot,
-     *  or strafing will invert / rotation will behave incorrectly.
-     *
-     *  If at competition the robot strafes the wrong way, or spins in
-     *  place when you expect it to strafe, re-check this section AND the
-     *  Direction values below before touching PIDF tuning.
-     */
     public static MecanumConstants driveConstants = new MecanumConstants()
             // Hard cap (0-1) on motor power PedroPathing will ever command.
             // 1 = no artificial cap; safe to lower temporarily while tuning to
@@ -174,10 +146,10 @@ public class Constants {
             // these rather than assuming symmetry (e.g. don't assume
             // left/right should mirror each other, since the O-roller +
             // name-swap combination breaks that intuition).
-            .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
-            .leftRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .rightFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
-            .rightRearMotorDirection(DcMotorSimple.Direction.REVERSE)
+            .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
+            .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
 
             // Max achievable robot velocity in in/sec along the X (forward)
             // and Y (strafe) axes at full power, from PedroPathing's

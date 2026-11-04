@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.Range;
@@ -56,6 +57,7 @@ import java.awt.font.NumericShaper;
  *      the top of loop(), not this PD block.
  * ============================================================================
  */
+@Disabled
 @TeleOp
 public class AprilTagAutoAlignment extends OpMode {
     private final AprilTagLimelight atlimelight = new AprilTagLimelight();

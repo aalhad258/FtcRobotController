@@ -17,29 +17,6 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  *  Constants.java, which drives the SAME four physical motors through
  *  PedroPathing's own internal kinematics rather than this class.
  *
- *  !!! IMPORTANT CROSS-FILE NOTE, READ BEFORE "FIXING" EITHER FILE !!!
- *  Recall from Constants.java: our mecanum rollers are mounted in an "O"
- *  pattern rather than the standard "X" pattern, which requires some
- *  compensation for the drive math to behave correctly. This class and
- *  Constants.java's PedroPathing MecanumConstants BOTH compensate for that
- *  same physical fact, but they do it in TWO DIFFERENT, INDEPENDENTLY-TUNED
- *  ways:
- *    - THIS FILE compensates purely through the per-motor Direction flags
- *      set in init() below (3 of the 4 motors reversed, 1 forward -- an
- *      intentionally asymmetric pattern, not a copy/paste mistake), while
- *      using the textbook STANDARD "X-configuration" kinematics formula in
- *      setPower() unmodified.
- *    - Constants.java's PedroPathing driveConstants instead compensates by
- *      swapping which hardwareMap device NAME is treated as "front" vs.
- *      "rear" on each side, with its own separately-tuned direction flags.
- *  Both were arrived at empirically by watching the real robot move and are
- *  each internally consistent -- but they are NOT required to match each
- *  other's specific direction/naming choices, since they solve the same
- *  problem via different mechanisms. Do not assume a direction flag here
- *  should mirror the one in Constants.java, and do not "harmonize" them
- *  without re-verifying actual robot motion on both control paths
- *  afterward.
- *
  *  Reference docs:
  *   - Standard mecanum drive kinematics (the axial/lateral/yaw -> 4-wheel
  *     power formula used in setPower() below is the classic "X-pattern"
@@ -54,22 +31,6 @@ public class Drive {
     private DcMotor rfMotor;
     private DcMotor rbMotor;
 
-    /**
-     * Looks up all four drive motors by their hardwareMap configuration
-     * names (must match the names configured in the Driver Station's robot
-     * configuration file exactly), and sets each one up for direct
-     * open-loop power control.
-     *
-     * NOTE: these hardwareMap names ("leftFrontMotor", "leftBackMotor",
-     * "rightFrontMotor", "rightBackMotor") are a straightforward 1:1
-     * name-to-role mapping -- unlike Constants.java's PedroPathing
-     * driveConstants, which deliberately swaps front/rear names for the
-     * same physical motors to compensate for the O-roller layout (see the
-     * class-level note above). This class instead compensates entirely via
-     * the Direction flags below.
-     *
-     * @param hwMap the OpMode's hardwareMap
-     */
     public void init(HardwareMap hwMap) {
         lfMotor = hwMap.get(DcMotor.class, "lfm");
         lbMotor = hwMap.get(DcMotor.class, "lbm");
@@ -95,28 +56,16 @@ public class Drive {
         lbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rfMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        // Direction flags -- THIS is where the O-roller-pattern compensation
-        // for this class lives (see class-level note above). Note the
-        // asymmetric pattern (3 REVERSE, 1 FORWARD): this was arrived at
-        // empirically, not by a symmetric "left side vs right side" rule, so
-        // don't assume it should mirror left-to-right or front-to-back.
-        lfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        lbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        rfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        rbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        lfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        lbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        rfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        rbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
     }
 
     /**
      * Converts a desired robot-relative motion (drive forward/back, strafe
      * left/right, and rotate) into individual power values for each of the
-     * four mecanum wheels, using the standard "X-configuration" mecanum
-     * kinematics equations, then commands those powers (scaled by `speed`).
-     *
-     * IMPORTANT: this formula is the textbook X-pattern mecanum equation
-     * and is NOT itself modified to account for our robot's O-pattern
-     * roller layout -- that compensation is fully handled by the Direction
-     * flags set in init() above, so this math can stay exactly as-is
-     * regardless of physical roller orientation.
+     * four mecanum wheels
      *
      * @param axial   forward(+)/backward(-) power, -1.0 to 1.0
      * @param lateral strafe right(+)/left(-) power, -1.0 to 1.0 (sign
@@ -133,14 +82,9 @@ public class Drive {
         // accepts values from -1.0 to 0.1
         double max;
 
-        // Standard mecanum kinematics: each wheel's power is the sum of the
-        // forward/back component, plus or minus the strafe component
-        // (depending on which diagonal that wheel's rollers lie along), plus
-        // or minus the rotation component (depending on which side of the
-        // robot the wheel is on).
         double lfPower = axial + lateral + yaw;
-        double lbPower = axial - lateral + yaw;
-        double rfPower = axial - lateral - yaw;
+        double lbPower = axial - lateral - yaw;
+        double rfPower = axial - lateral + yaw;
         double rbPower = axial + lateral - yaw;
 
         // Find the largest-magnitude commanded power across all 4 wheels.

@@ -8,6 +8,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -78,6 +79,8 @@ import java.util.List;
  *      LimeLightBasic.java.
  * ============================================================================
  */
+
+@Disabled
 @Autonomous
 public class LimeLightBasicDist extends OpMode {
     private Limelight3A limelight3A;

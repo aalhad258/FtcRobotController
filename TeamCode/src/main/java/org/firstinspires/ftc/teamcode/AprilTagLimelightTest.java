@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
@@ -37,6 +38,8 @@ import org.firstinspires.ftc.teamcode.mechanism.AprilTagLimelight;
  *     https://docs.limelightvision.io/docs/docs-limelight/getting-started/ftc
  * ============================================================================
  */
+
+@Disabled
 @Autonomous
 public class AprilTagLimelightTest extends OpMode {
 

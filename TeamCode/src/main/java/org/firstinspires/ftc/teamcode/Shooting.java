@@ -268,10 +268,9 @@ public class Shooting extends OpMode {
         // DRIVE
         // =====================================================
 
-        double axial = gamepad1.left_stick_y;
-        double lateral = -gamepad1.left_stick_x;
+        double axial = -gamepad1.left_stick_y;
+        double lateral = gamepad1.left_stick_x;
         double yaw = gamepad1.right_stick_x;
-
         drive.setPower(
                 axial,
                 lateral,

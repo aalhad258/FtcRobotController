@@ -17,13 +17,10 @@ public class CalculateShot {
     private static final double SMALL_CONSTANT = 2.5;
     private static final double BIG_CONSTANT = 3.0;
 
-    private static final int MAX_VELOCITY_RETRIES = 50;
-    private static final double VELOCITY_INCREMENT = 500.0;
-
     private static final double GRAVITY = 9.81;
 
     // Initial velocity calculated from RPM
-    private double vInit =
+    private final double vInit =
             WHEEL_RADIUS_METERS * RPM * 2.0 * Math.PI / 60.0;
 
 
@@ -43,7 +40,7 @@ public class CalculateShot {
 
         double shootX = 0.0254 * Math.hypot(dx, dy);
 
-        // Height difference between target and shooter, in meters
+        // Height difference between target and shooter
         double deltaY =
                 (HIVE_HEIGHT - SHOOTER_HEIGHT) * 0.0254;
 
@@ -52,49 +49,29 @@ public class CalculateShot {
                 ? vInit / SMALL_CONSTANT
                 : vInit / BIG_CONSTANT;
 
-        double aConstant;
-        double bConstant;
-        double cConstant;
-        double discriminant;
+        // Calculate quadratic coefficients
+        double aConstant =
+                GRAVITY * shootX * shootX
+                        / (2.0 * vInitial * vInitial);
 
-        int retries = 0;
+        double bConstant = -shootX;
 
-        // Recalculate until a real solution exists
-        while (true) {
+        double cConstant =
+                GRAVITY * shootX * shootX
+                        / (2.0 * vInitial * vInitial)
+                        + deltaY;
 
-            aConstant =
-                    GRAVITY * shootX * shootX
-                            / (2.0 * vInitial * vInitial);
+        // Calculate discriminant
+        double discriminant =
+                bConstant * bConstant
+                        - 4.0 * aConstant * cConstant;
 
-            bConstant = -shootX;
-
-            cConstant =
-                    GRAVITY * shootX * shootX
-                            / (2.0 * vInitial * vInitial)
-                            + deltaY;
-
-            discriminant =
-                    bConstant * bConstant
-                            - 4.0 * aConstant * cConstant;
-
-            if (discriminant >= 0.0) {
-                break;
-            }
-
-            if (retries >= MAX_VELOCITY_RETRIES) {
-                return 0.0;
-            }
-
-            // Increase the base velocity and retry
-            vInit += VELOCITY_INCREMENT;
-            retries++;
-
-            vInitial = chooseBall
-                    ? vInit / SMALL_CONSTANT
-                    : vInit / BIG_CONSTANT;
+        // No real solution
+        if (discriminant < 0.0 || aConstant == 0.0) {
+            return 0.0;
         }
 
-        // Solve for the tangent of the launch angle
+        // Solve for tangent of launch angle
         double tangent =
                 (-bConstant + Math.sqrt(discriminant))
                         / (2.0 * aConstant);
@@ -104,7 +81,7 @@ public class CalculateShot {
 
 
     // =========================================================
-    // OPTIONAL GETTERS
+    // GETTERS
     // =========================================================
 
     public double getVInit() {
