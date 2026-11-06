@@ -118,7 +118,7 @@ public class Auton extends OpMode {
     static final double FEED_SECONDS = 5.0;
 
     // Motor powers
-    static final double INTAKE_POWER = -1.0;
+    static final double INTAKE_POWER = 1.0;
 
 
     // =========================================================

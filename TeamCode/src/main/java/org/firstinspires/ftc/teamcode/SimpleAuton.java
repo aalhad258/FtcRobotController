@@ -134,7 +134,7 @@ public class SimpleAuton extends OpMode {
             case DRIVE_FORWARD:
 
                 drive.setPower(
-                        -1,
+                        1,
                         0,
                         0,
                         DRIVE_POWER

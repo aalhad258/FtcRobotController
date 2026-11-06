@@ -147,8 +147,8 @@ public class Constants {
             // left/right should mirror each other, since the O-roller +
             // name-swap combination breaks that intuition).
             .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
-            .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .leftRearMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .rightFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
 
             // Max achievable robot velocity in in/sec along the X (forward)
@@ -183,7 +183,7 @@ public class Constants {
             // wrong offset here causes position error that GROWS with
             // rotation (robot position "swims" as it turns even if it isn't
             // actually translating).
-            .forwardPodY(-5)
+            .forwardPodY(5)
             .strafePodX(0)
             .distanceUnit(DistanceUnit.INCH)
             // hardwareMap device name for the Pinpoint computer itself (must
@@ -202,7 +202,7 @@ public class Constants {
             // expect; flip these if position tracks backwards relative to
             // real motion.
             .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED)
-            .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED);
+            .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD);
 
     /**
      * ------------------------------------------------------------------

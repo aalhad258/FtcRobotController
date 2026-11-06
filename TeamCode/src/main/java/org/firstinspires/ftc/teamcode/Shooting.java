@@ -36,16 +36,16 @@ public class Shooting extends OpMode {
     // FIELD CONFIGURATION
     // =========================================================
 
-    private static final double START_X = 50.0;
-    private static final double START_Y = 8.0;
-    private static final double START_HEADING = 90.0;
+    private static final double START_Y = 50.0;
+    private static final double START_X = 8.0;
+    private static final double START_HEADING = 0.0;
 
-    private static final double TARGET_X = 50.0;
+    private static final double TARGET_Y = 50.0;
 
-    private static final double TARGET_Y_1 = 54.0;
-    private static final double TARGET_Y_2 = 99.0;
+    private static final double TARGET_X_1 = 54.0;
+    private static final double TARGET_X_2 = 99.0;
 
-    private double targetY = TARGET_Y_1;
+    private double targetX = TARGET_X_1;
 
 
     // =========================================================
@@ -147,8 +147,8 @@ public class Shooting extends OpMode {
         );
 
         pinpoint.setOffsets(
-                0.5,
-                -4,
+                5,
+                0,
                 DistanceUnit.INCH
         );
 
@@ -158,7 +158,7 @@ public class Shooting extends OpMode {
 
         pinpoint.setEncoderDirections(
                 GoBildaPinpointDriver.EncoderDirection.REVERSED,
-                GoBildaPinpointDriver.EncoderDirection.REVERSED
+                GoBildaPinpointDriver.EncoderDirection.FORWARD
         );
 
         // Reset the Pinpoint's position and IMU.
@@ -226,10 +226,10 @@ public class Shooting extends OpMode {
 
         if (gamepad1.x && !lastXState) {
 
-            if (targetY == TARGET_Y_1) {
-                targetY = TARGET_Y_2;
+            if (targetX == TARGET_X_1) {
+                targetX = TARGET_X_2;
             } else {
-                targetY = TARGET_Y_1;
+                targetX = TARGET_X_1;
             }
         }
 
@@ -240,8 +240,8 @@ public class Shooting extends OpMode {
         // AUTOMATIC TURRET ALIGNMENT
         // =====================================================
 
-        double dx = TARGET_X - robotX;
-        double dy = targetY - robotY;
+        double dx = targetX - robotX;
+        double dy = TARGET_Y - robotY;
 
         targetFieldAngle = Math.toDegrees(
                 Math.atan2(dy, dx)
@@ -407,12 +407,12 @@ public class Shooting extends OpMode {
 
         telemetry.addLine("===== TARGET =====");
 
-        telemetry.addData("Target X", TARGET_X);
-        telemetry.addData("Target Y", targetY);
+        telemetry.addData("Target X", targetX);
+        telemetry.addData("Target Y", TARGET_Y);
 
         telemetry.addData(
                 "Target Position",
-                targetY == TARGET_Y_1 ? "CLOSE" : "FAR"
+                targetX == TARGET_X_1 ? "CLOSE" : "FAR"
         );
 
         telemetry.addData(
@@ -444,8 +444,8 @@ public class Shooting extends OpMode {
             double robotY
     ) {
 
-        double dx = TARGET_X - robotX;
-        double dy = targetY - robotY;
+        double dx = targetX - robotX;
+        double dy = TARGET_Y - robotY;
 
         double shootX =
                 0.0254 * Math.hypot(dx, dy);

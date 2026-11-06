@@ -57,8 +57,8 @@ public class Drive {
         rfMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         lfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        lbMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        rfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        lbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        rfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         rbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
     }
 
@@ -83,8 +83,8 @@ public class Drive {
         double max;
 
         double lfPower = axial + lateral + yaw;
-        double lbPower = axial - lateral - yaw;
-        double rfPower = axial - lateral + yaw;
+        double lbPower = axial - lateral + yaw;
+        double rfPower = axial - lateral - yaw;
         double rbPower = axial + lateral - yaw;
 
         // Find the largest-magnitude commanded power across all 4 wheels.
