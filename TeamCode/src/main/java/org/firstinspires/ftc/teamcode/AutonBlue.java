@@ -15,9 +15,10 @@ import org.firstinspires.ftc.teamcode.mechanism.AprilTagLimelight;
 import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.mechanism.TurretMechanism;
+import org.firstinspires.ftc.teamcode.mechanism.PoseStorage;
 
 @Autonomous
-public class Auton extends OpMode {
+public class AutonBlue extends OpMode {
 
     // =========================================================
     // HARDWARE
@@ -313,6 +314,7 @@ public class Auton extends OpMode {
 
     @Override
     public void init() {
+        PoseStorage.hasPose = false;
 
         // Initialize intake
         intake.init(hardwareMap, "intake");
@@ -520,6 +522,11 @@ public class Auton extends OpMode {
         atlimelight.update();
 
         currentPose = follower.getPose();
+
+        PoseStorage.x = currentPose.getX();
+        PoseStorage.y = currentPose.getY();
+        PoseStorage.headingDeg = Math.toDegrees(currentPose.getHeading());
+        PoseStorage.hasPose = true;
 
         double dx = targetX - currentPose.getX();
         double dy = TARGET_Y - currentPose.getY();

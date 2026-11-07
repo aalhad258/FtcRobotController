@@ -14,9 +14,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
 import org.firstinspires.ftc.teamcode.mechanism.Drive;
 import org.firstinspires.ftc.teamcode.mechanism.TurretMechanism;
+import org.firstinspires.ftc.teamcode.mechanism.PoseStorage;
 
-@TeleOp(name = "Shooting Auto Turret")
-public class Shooting extends OpMode {
+@TeleOp(name = "TeleOp Class")
+public class TeleOpClass extends OpMode {
 
     // =========================================================
     // HARDWARE
@@ -184,18 +185,26 @@ public class Shooting extends OpMode {
     @Override
     public void start() {
 
-        // Assign the robot's starting field position.
+        double startX = START_X;
+        double startY = START_Y;
+        double startHeading = START_HEADING;
+
+        if (PoseStorage.hasPose) {
+            startX = PoseStorage.x;
+            startY = PoseStorage.y;
+            startHeading = PoseStorage.headingDeg;
+        }
+
         pinpoint.setPosition(
                 new Pose2D(
                         DistanceUnit.INCH,
-                        START_X,
-                        START_Y,
+                        startX,
+                        startY,
                         AngleUnit.DEGREES,
-                        START_HEADING
+                        startHeading
                 )
         );
 
-        // Read the initialized position.
         pinpoint.update();
         currentPose = pinpoint.getPosition();
     }
@@ -493,5 +502,7 @@ public class Shooting extends OpMode {
         shooter.setPower(0);
 
         turret.stop();
+
+        PoseStorage.hasPose = false;
     }
 }
