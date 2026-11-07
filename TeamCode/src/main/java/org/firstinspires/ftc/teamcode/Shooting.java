@@ -43,7 +43,7 @@ public class Shooting extends OpMode {
     private static final double TARGET_Y = 50.0;
 
     private static final double TARGET_X_1 = 54.0;
-    private static final double TARGET_X_2 = 99.0;
+    private static final double TARGET_X_2 = 89.0;
 
     private double targetX = TARGET_X_1;
 
@@ -52,7 +52,7 @@ public class Shooting extends OpMode {
     // SHOOTER CONFIGURATION
     // =========================================================
 
-    static final double SHOOTING_ANGLE_DEG = 37.8;
+    static final double SHOOTING_ANGLE_DEG = 70.8;
     static final double SHOOTING_ANGLE_RAD =
             Math.toRadians(SHOOTING_ANGLE_DEG);
 
@@ -65,7 +65,7 @@ public class Shooting extends OpMode {
     static final double FLYWHEEL_P = 2.0;
     static final double FLYWHEEL_I = 0.0;
     static final double FLYWHEEL_D = 0.5;
-    static final double FLYWHEEL_F = 10.6;
+    static final double FLYWHEEL_F = 9.85;
 
 
     // =========================================================
@@ -475,7 +475,7 @@ public class Shooting extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS) *
                         (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.8;
+        return targetRPM * 2.5;
     }
 
 

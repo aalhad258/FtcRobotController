@@ -14,6 +14,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import org.firstinspires.ftc.teamcode.mechanism.AprilTagLimelight;
 import org.firstinspires.ftc.teamcode.mechanism.DcMotor;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import org.firstinspires.ftc.teamcode.mechanism.TurretMechanism;
 
 @Autonomous
 public class Auton extends OpMode {
@@ -40,10 +41,8 @@ public class Auton extends OpMode {
     private String shotMessage = "";
     private String postShotMessage = "";
     private String routeMessage = "";
-
-    // Turn targets
-    private double turnTwoTarget = 0.0;
-    private double goalTurnTarget = 0.0;
+    private TurretMechanism turret;
+    private double turretErrorDeg = 0.0;
 
 
     // =========================================================
@@ -65,10 +64,7 @@ public class Auton extends OpMode {
     // Y = horizontal
     // =========================================================
 
-    static final double LEFT_SHIFT_IN = 25.0;
-
-    static final double BASE_Y = 11.75;
-    static final double Y = BASE_Y + LEFT_SHIFT_IN; // 36.75
+    static final double Y = 94;
 
     static final double FIELD_SIZE_IN = 144.0;
 
@@ -86,7 +82,9 @@ public class Auton extends OpMode {
 
     // Current working target coordinates.
     // Verify these against the actual center of the Hive opening.
-    static final double TARGET_X = 55.0;
+    static final double TARGET_X_CLOSE = 54.0;
+    static final double TARGET_X_FAR = 89.0;
+    private double targetX = TARGET_X_CLOSE;
     static final double TARGET_Y = Y;
 
     // Current assumed launch angle.
@@ -97,10 +95,10 @@ public class Auton extends OpMode {
 
     // Approximate opening center:
     // (53.5 + 65.6) / 2 = 59.55 inches
-    static final double HIVE_HEIGHT = 59.55;
+    static final double HIVE_HEIGHT = 63.0;
 
     // Your assumed shooter exit height
-    static final double SHOOTER_HEIGHT = 8.0;
+    static final double SHOOTER_HEIGHT = 10.0;
 
     // Current wheel assumptions
     static final double WHEEL_RADIUS_METERS = 0.036;
@@ -111,11 +109,11 @@ public class Auton extends OpMode {
     static final double FLYWHEEL_P = 2.0;
     static final double FLYWHEEL_I = 0.0;
     static final double FLYWHEEL_D = 0.5;
-    static final double FLYWHEEL_F = 11.7;
+    static final double FLYWHEEL_F = 9.85;
 
     // Shooting timings
     static final double SHOOTER_SPINUP_SECONDS = 1.5;
-    static final double FEED_SECONDS = 5.0;
+    static final double FEED_SECONDS = 3.0;
 
     // Motor powers
     static final double INTAKE_POWER = 1.0;
@@ -139,8 +137,6 @@ public class Auton extends OpMode {
 
         DRIVETOGARDEN,
 
-        TURNTWO,
-
         CHECK_TAG,
 
         SHOOT_SECOND,
@@ -153,11 +149,7 @@ public class Auton extends OpMode {
 
         DIFF_SHOT,
 
-        DIFF_TURN,
-
         DIFF_DOWN,
-
-        TURN_TO_GOAL,
 
         SHOOT_THIRD,
 
@@ -183,7 +175,7 @@ public class Auton extends OpMode {
             new Pose(8, Y, Math.toRadians(90));
 
     private final Pose gardenPose =
-            new Pose(8, 60, Math.toRadians(90));
+            new Pose(8, 135, Math.toRadians(90));
 
     private final Pose flowerPose =
             new Pose(
@@ -197,13 +189,6 @@ public class Auton extends OpMode {
                     DIFF_SHOT_X,
                     flowerPose.getY(),
                     Math.toRadians(0)
-            );
-
-    private final Pose diffDownStartPose =
-            new Pose(
-                    DIFF_SHOT_X,
-                    flowerPose.getY(),
-                    Math.toRadians(270)
             );
 
     private final Pose diffShotPose =
@@ -266,11 +251,10 @@ public class Auton extends OpMode {
 
 
         // Garden -> flower
-        // Robot is facing 315 degrees when this path begins.
         flowerPath = follower.pathBuilder()
                 .addPath(new BezierLine(gardenPose, flowerPose))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(315),
+                        Math.toRadians(90),
                         flowerPose.getHeading()
                 )
                 .build();
@@ -291,8 +275,8 @@ public class Auton extends OpMode {
         gardenToDiffPath = follower.pathBuilder()
                 .addPath(new BezierLine(gardenPose, diffCornerPose))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(315),
-                        diffCornerPose.getHeading()
+                        Math.toRadians(90),
+                        Math.toRadians(180)
                 )
                 .build();
 
@@ -303,7 +287,7 @@ public class Auton extends OpMode {
                 .addPath(new BezierLine(flowerPose, diffCornerPose))
                 .setLinearHeadingInterpolation(
                         flowerPose.getHeading(),
-                        diffCornerPose.getHeading()
+                        Math.toRadians(180)
                 )
                 .build();
 
@@ -312,12 +296,12 @@ public class Auton extends OpMode {
         diffDownPath = follower.pathBuilder()
                 .addPath(
                         new BezierLine(
-                                diffDownStartPose,
+                                diffCornerPose,
                                 diffShotPose
                         )
                 )
                 .setConstantHeadingInterpolation(
-                        diffDownStartPose.getHeading()
+                        Math.toRadians(180)
                 )
                 .build();
     }
@@ -345,6 +329,8 @@ public class Auton extends OpMode {
 
         shootTimer = new ElapsedTime();
 
+        turret = new TurretMechanism();
+        turret.init(hardwareMap);
 
         // Initialize shooter
         shooter = hardwareMap.get(
@@ -423,13 +409,6 @@ public class Auton extends OpMode {
     // TURN HELPERS
     // =========================================================
 
-    private double wrapTwoPi(double a) {
-
-        double twoPi = 2.0 * Math.PI;
-
-        return ((a % twoPi) + twoPi) % twoPi;
-    }
-
 
     private double headingError(double targetRad) {
 
@@ -437,42 +416,6 @@ public class Auton extends OpMode {
                 Math.sin(targetRad - currentPose.getHeading()),
                 Math.cos(targetRad - currentPose.getHeading())
         );
-    }
-
-
-    private boolean turnDone(
-            double targetRad,
-            double toleranceRad,
-            String label
-    ) {
-
-        double err = headingError(targetRad);
-
-        telemetry.addData(
-                label + " Heading",
-                "%.2f°",
-                Math.toDegrees(currentPose.getHeading())
-        );
-
-        telemetry.addData(
-                label + " Target",
-                "%.2f°",
-                Math.toDegrees(targetRad)
-        );
-
-        telemetry.addData(
-                label + " Error",
-                "%.2f°",
-                Math.toDegrees(err)
-        );
-
-        telemetry.addData(
-                label + " Busy",
-                follower.isBusy()
-        );
-
-        return !follower.isBusy()
-                || Math.abs(err) < toleranceRad;
     }
 
 
@@ -577,6 +520,22 @@ public class Auton extends OpMode {
         atlimelight.update();
 
         currentPose = follower.getPose();
+
+        double dx = targetX - currentPose.getX();
+        double dy = TARGET_Y - currentPose.getY();
+
+        double fieldAngle = Math.toDegrees(Math.atan2(dy, dx));
+        double desiredTurret = fieldAngle - Math.toDegrees(currentPose.getHeading());
+
+        // normalize to -180..180
+        desiredTurret = Math.toDegrees(Math.atan2(
+                Math.sin(Math.toRadians(desiredTurret)),
+                Math.cos(Math.toRadians(desiredTurret))));
+
+        turret.update(desiredTurret);
+        turretErrorDeg = desiredTurret - turret.getTurretPositionDegrees();
+
+        telemetry.addData("Turret Error", "%.2f deg", turretErrorDeg);
 
 
         // =====================================================
@@ -763,40 +722,6 @@ public class Auton extends OpMode {
 
                     intake.setMotorSpeed(0);
 
-                    setPathState(PathState.TURNTWO);
-                }
-
-                break;
-
-
-            // =================================================
-            // TURN TOWARD GOAL
-            // =================================================
-
-            case TURNTWO:
-
-                if (!stateInitialized) {
-
-                    turnTwoTarget = Math.toRadians(315);
-
-                    follower.turnTo(turnTwoTarget);
-
-                    stateInitialized = true;
-                }
-
-                double turnTwoError =
-                        headingError(turnTwoTarget);
-
-                telemetry.addData(
-                        "TURNTWO Error",
-                        "%.2f°",
-                        Math.toDegrees(turnTwoError)
-                );
-
-                if (!follower.isBusy()
-                        || Math.abs(turnTwoError)
-                        < Math.toRadians(3)) {
-
                     setPathState(PathState.CHECK_TAG);
                 }
 
@@ -933,7 +858,7 @@ public class Auton extends OpMode {
 
                 if (!follower.isBusy()) {
 
-                    setPathState(PathState.TURN_TO_GOAL);
+                    setPathState(PathState.SHOOT_THIRD);
                 }
 
                 break;
@@ -946,34 +871,6 @@ public class Auton extends OpMode {
             case DIFF_SHOT:
 
                 if (!follower.isBusy()) {
-
-                    setPathState(PathState.DIFF_TURN);
-                }
-
-                break;
-
-
-            // =================================================
-            // TURN RIGHT
-            // =================================================
-
-            case DIFF_TURN:
-
-                double diffTurnTarget =
-                        Math.toRadians(270);
-
-                if (!stateInitialized) {
-
-                    follower.turnTo(diffTurnTarget);
-
-                    stateInitialized = true;
-                }
-
-                if (turnDone(
-                        diffTurnTarget,
-                        Math.toRadians(5),
-                        "DIFF_TURN"
-                )) {
 
                     setPathState(PathState.DIFF_DOWN);
 
@@ -991,46 +888,11 @@ public class Auton extends OpMode {
             // =================================================
 
             case DIFF_DOWN:
-
                 if (!follower.isBusy()) {
-
-                    setPathState(PathState.TURN_TO_GOAL);
-                }
-
-                break;
-
-
-            // =================================================
-            // TURN TOWARD GOAL
-            // =================================================
-
-            case TURN_TO_GOAL:
-
-                if (!stateInitialized) {
-
-                    goalTurnTarget = wrapTwoPi(
-                            Math.atan2(
-                                    TARGET_Y - currentPose.getY(),
-                                    TARGET_X - currentPose.getX()
-                            )
-                    );
-
-                    follower.turnTo(goalTurnTarget);
-
-                    stateInitialized = true;
-                }
-
-                if (turnDone(
-                        goalTurnTarget,
-                        Math.toRadians(3),
-                        "GOAL TURN"
-                )) {
-
+                    targetX = TARGET_X_FAR;
                     setPathState(PathState.SHOOT_THIRD);
                 }
-
                 break;
-
 
             // =================================================
             // SHOOT #3
@@ -1073,7 +935,7 @@ public class Auton extends OpMode {
             double robotHeading
     ) {
 
-        double dx = TARGET_X - robotX;
+        double dx = targetX - robotX;
 
         double dy = TARGET_Y - robotY;
 
@@ -1108,7 +970,7 @@ public class Auton extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS)
                         * (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.2;
+        return targetRPM * 2.5;
     }
 
 
@@ -1123,6 +985,10 @@ public class Auton extends OpMode {
 
         if (shooter != null) {
             shooter.setVelocity(0);
+        }
+
+        if (turret != null) {
+            turret.stop();
         }
     }
 }
