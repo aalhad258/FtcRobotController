@@ -20,9 +20,9 @@ public class ServoExamples extends OpMode {
 
     @Override
     public void init() {
-        servo1.init(hardwareMap, "servo_pos1");
-        servo2.init(hardwareMap, "servo_pos2");
-        servo3.init(hardwareMap, "servo_pos3");
+        servo1.init(hardwareMap, "right servo");
+        servo2.init(hardwareMap, "left servo");
+        servo3.init(hardwareMap, "angular servo");
 
         // Set initial positions
         servo1.setServoPos(position1);

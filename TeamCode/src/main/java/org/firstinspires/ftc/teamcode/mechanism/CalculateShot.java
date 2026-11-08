@@ -12,16 +12,10 @@ public class CalculateShot {
     private static final double WHEEL_RADIUS_METERS = 0.036;
     private static final double TICKS_PER_REV = 28.0;
 
-    private static final double RPM = 3000.0;
-
     private static final double SMALL_CONSTANT = 2.5;
     private static final double BIG_CONSTANT = 3.0;
 
     private static final double GRAVITY = 9.81;
-
-    // Initial velocity calculated from RPM
-    private final double vInit =
-            WHEEL_RADIUS_METERS * RPM * 2.0 * Math.PI / 60.0;
 
 
     // =========================================================
@@ -31,11 +25,15 @@ public class CalculateShot {
     public double calculateShot(
             double robotX,
             double robotY,
-            boolean chooseBall
+            boolean chooseBall,
+            double RPM
     ) {
 
+        double vInit =
+                WHEEL_RADIUS_METERS * RPM * 2.0 * Math.PI / 60.0;
+
         // Distance from robot to target, converted to meters
-        double dx = 45.0 - robotX;
+        double dx = 46.0 - robotX;
         double dy = 0.0 - robotY;
 
         double shootX = 0.0254 * Math.hypot(dx, dy);
@@ -84,15 +82,4 @@ public class CalculateShot {
     // GETTERS
     // =========================================================
 
-    public double getVInit() {
-        return vInit;
-    }
-
-    public double getRPM() {
-        return RPM;
-    }
-
-    public double getTargetVelocityTicksPerSecond() {
-        return (RPM / 60.0) * TICKS_PER_REV;
-    }
 }

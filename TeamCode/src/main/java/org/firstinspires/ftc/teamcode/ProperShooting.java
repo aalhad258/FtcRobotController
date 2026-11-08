@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.util.Range;
 
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 
@@ -42,7 +43,7 @@ public class ProperShooting extends OpMode {
 
     private final CalculateShot calculateShot = new CalculateShot();
 
-    private static final double RPM = 3000.0;
+    private  double RPM = 3000.0;
     private static final double TICKS_PER_REV = 28.0;
 
     private static final double FLYWHEEL_P = 2.0;
@@ -51,9 +52,9 @@ public class ProperShooting extends OpMode {
     private static final double FLYWHEEL_F = 10.6;
 
     private static final double SMALL_POSITION_1 = 1.0;
-    private static final double SMALL_POSITION_2 = 0.0;
+    private static final double SMALL_POSITION_2 = 0.8;
 
-    private static final double BIG_POSITION_1 = 0.8;
+    private static final double BIG_POSITION_1 = 0.0;
     private static final double BIG_POSITION_2 = 0.2;
 
     private boolean shooterActive = false;
@@ -87,9 +88,9 @@ public class ProperShooting extends OpMode {
 
         shooter = hardwareMap.get(DcMotorEx.class, "shooter");
 
-        angleServo.init(hardwareMap, "angleServo");
-        whichBall1.init(hardwareMap, "ball1Servo");
-        whichBall2.init(hardwareMap, "ball2Servo");
+        angleServo.init(hardwareMap, "angular servo");
+        whichBall1.init(hardwareMap, "right servo");
+        whichBall2.init(hardwareMap, "left servo");
 
         shooter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -212,12 +213,31 @@ public class ProperShooting extends OpMode {
             double angle = calculateShot.calculateShot(
                     robotX,
                     robotY,
-                    ball
+                    ball,
+                    RPM
             );
 
             shootingAngleDeg = Math.toDegrees(angle);
+            while (shootingAngleDeg > 60.0) {
+                RPM += 200;
+                shootingAngleDeg = Math.toDegrees(calculateShot.calculateShot(
+                        robotX,
+                        robotY,
+                        ball,
+                        RPM
+                ));
+            }
+            while (shootingAngleDeg < 50.0) {
+                RPM -= 200;
+                shootingAngleDeg = Math.toDegrees(calculateShot.calculateShot(
+                        robotX,
+                        robotY,
+                        ball,
+                        RPM
+                ));
+            }
 
-            double servoPosition = shootingAngleDeg / 180.0;
+            double servoPosition = Range.scale(shootingAngleDeg, 50, 60, 1, 0);;
 
             angleServo.setServoPos(servoPosition);
 
@@ -225,9 +245,13 @@ public class ProperShooting extends OpMode {
                     (RPM / 60.0) * TICKS_PER_REV;
 
             shooter.setVelocity(targetTicksPerSec);
+            telemetry.addData("target", targetTicksPerSec);
+            telemetry.addData("acc", shooter.getVelocity());
+            telemetry.update();
 
         } else {
             shooter.setVelocity(0.0);
+            RPM = 3000;
         }
 
         // -----------------------------------------------------

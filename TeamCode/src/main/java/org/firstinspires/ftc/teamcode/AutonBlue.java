@@ -33,6 +33,7 @@ public class AutonBlue extends OpMode {
             new AprilTagLimelight();
 
     private ElapsedTime shootTimer;
+    private ElapsedTime tagCheckTimer;
 
     private Pose currentPose;
 
@@ -172,11 +173,14 @@ public class AutonBlue extends OpMode {
     private final Pose shootPose =
             new Pose(SHOOT_X, Y, Math.toRadians(0));
 
+    private final Pose startOnePose =
+            new Pose(14, Y, Math.toRadians(0));
+
     private final Pose startTwoPose =
             new Pose(8, Y, Math.toRadians(90));
 
     private final Pose gardenPose =
-            new Pose(8, 135, Math.toRadians(90));
+            new Pose(8, 125, Math.toRadians(90));
 
     private final Pose flowerPose =
             new Pose(
@@ -233,10 +237,10 @@ public class AutonBlue extends OpMode {
 
         // First shooting position -> starting position
         backPath = follower.pathBuilder()
-                .addPath(new BezierLine(shootPose, startPose))
+                .addPath(new BezierLine(shootPose, startOnePose))
                 .setLinearHeadingInterpolation(
                         shootPose.getHeading(),
-                        startPose.getHeading()
+                        startOnePose.getHeading()
                 )
                 .build();
 
@@ -330,6 +334,7 @@ public class AutonBlue extends OpMode {
         follower.setPose(startPose);
 
         shootTimer = new ElapsedTime();
+        tagCheckTimer = new ElapsedTime();
 
         turret = new TurretMechanism();
         turret.init(hardwareMap);
@@ -400,10 +405,10 @@ public class AutonBlue extends OpMode {
 
         // Blue far-side CELL tags.
         // This tracks the initially upward-facing CELL only.
-        return atlimelight.hasTag(42)
+        return (atlimelight.hasTag(42)
                 || atlimelight.hasTag(43)
                 || atlimelight.hasTag(44)
-                || atlimelight.hasTag(45);
+                || atlimelight.hasTag(45));
     }
 
 
@@ -644,6 +649,8 @@ public class AutonBlue extends OpMode {
 
                 if (!follower.isBusy()) {
 
+                    tagCheckTimer.reset();
+
                     setPathState(
                             PathState.CHECK_TAG_AFTER_FIRST
                     );
@@ -658,26 +665,28 @@ public class AutonBlue extends OpMode {
 
             case CHECK_TAG_AFTER_FIRST:
 
-                sawTagAfterFirstShot = canSeeShootTag();
+                if (tagCheckTimer.seconds() >= 1.0) {
+                    sawTagAfterFirstShot = canSeeShootTag();
 
-                if (sawTagAfterFirstShot) {
+                    if (sawTagAfterFirstShot) {
 
-                    postShotMessage =
-                            "Tag visible after shot #1";
+                        postShotMessage =
+                                "Tag visible after shot #1";
 
-                    routeMessage =
-                            "Continue to shot #2";
+                        routeMessage =
+                                "Continue to shot #2";
 
-                } else {
+                    } else {
 
-                    postShotMessage =
-                            "No tag after shot #1";
+                        postShotMessage =
+                                "No tag after shot #1";
 
-                    routeMessage =
-                            "Skip shot #2 and flower";
+                        routeMessage =
+                                "Skip shot #2 and flower";
+                    }
+
+                    setPathState(PathState.TURNONE);
                 }
-
-                setPathState(PathState.TURNONE);
 
                 break;
 
@@ -742,7 +751,7 @@ public class AutonBlue extends OpMode {
 
             case CHECK_TAG:
 
-                if (sawTagAfterFirstShot) {
+                if (sawTagAfterFirstShot && canSeeShootTag()) {
 
                     shotMessage =
                             "Tag #1 visible - shooting #2";
@@ -977,7 +986,7 @@ public class AutonBlue extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS)
                         * (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.5;
+        return targetRPM * 2.8;
     }
 
 
