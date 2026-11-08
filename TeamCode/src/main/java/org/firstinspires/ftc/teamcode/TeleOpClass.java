@@ -484,7 +484,7 @@ public class TeleOpClass extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS) *
                         (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.5;
+        return targetRPM * 2.8;
     }
 
 
