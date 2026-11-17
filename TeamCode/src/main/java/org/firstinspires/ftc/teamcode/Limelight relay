@@ -1,0 +1,55 @@
+package org.firstinspires.ftc.teamcode.pedroPathing;
+
+import java.io.*;
+import java.net.*;
+
+/** Relays hub Wi-Fi ports 5800-5809 to the Limelight 3A on USB (172.29.0.1). */
+public final class LimelightRelay {
+    private static final String LL_IP = "172.29.0.1";
+    private static boolean started = false;
+
+    public static synchronized void start() {
+        if (started) return;               // run once per RC app session
+        started = true;
+        for (int port = 5800; port <= 5809; port++) {
+            final int p = port;
+            Thread t = new Thread(() -> listen(p), "LLRelay-" + p);
+            t.setDaemon(true);
+            t.start();
+        }
+    }
+
+    private static void listen(int port) {
+        try (ServerSocket server = new ServerSocket()) {
+            server.setReuseAddress(true);
+            server.bind(new InetSocketAddress("0.0.0.0", port));
+            while (true) {
+                Socket client = server.accept();
+                new Thread(() -> bridge(client, port)).start();
+            }
+        } catch (IOException ignored) { }
+    }
+
+    private static void bridge(Socket client, int port) {
+        try (Socket ll = new Socket(LL_IP, port)) {
+            Thread up = pipe(client.getInputStream(), ll.getOutputStream());
+            pipe(ll.getInputStream(), client.getOutputStream()).join();
+            up.interrupt();
+        } catch (Exception ignored) {
+        } finally {
+            try { client.close(); } catch (IOException ignored) { }
+        }
+    }
+
+    private static Thread pipe(InputStream in, OutputStream out) {
+        Thread t = new Thread(() -> {
+            byte[] buf = new byte[16384];
+            int n;
+            try { while ((n = in.read(buf)) != -1) { out.write(buf, 0, n); out.flush(); } }
+            catch (IOException ignored) { }
+        });
+        t.setDaemon(true);
+        t.start();
+        return t;
+    }
+}
