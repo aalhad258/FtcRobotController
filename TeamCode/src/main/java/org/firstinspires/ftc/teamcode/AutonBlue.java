@@ -754,7 +754,7 @@ public class AutonBlue extends OpMode {
 
             case CHECK_TAG:
 
-                if (sawTagAfterFirstShot && canSeeShootTag()) {
+                if (sawTagAfterFirstShot) {
 
                     shotMessage =
                             "Tag #1 visible - shooting #2";
