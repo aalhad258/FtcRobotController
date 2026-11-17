@@ -7,6 +7,7 @@ import com.pedropathing.paths.PathChain;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
@@ -349,6 +350,8 @@ public class AutonBlue extends OpMode {
                 com.qualcomm.robotcore.hardware.DcMotor.RunMode
                         .STOP_AND_RESET_ENCODER
         );
+
+        shooter.setDirection(DcMotorSimple.Direction.REVERSE);
 
         shooter.setMode(
                 com.qualcomm.robotcore.hardware.DcMotor.RunMode
