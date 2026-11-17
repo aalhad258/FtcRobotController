@@ -1,0 +1,60 @@
+package org.firstinspires.ftc.teamcode.pedroPathing;
+
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
+
+/**
+ * TURRET TEST -- just the turret motor, nothing else.
+ *   dpad LEFT  = turn one way
+ *   dpad RIGHT = turn the other way
+ *   let go     = stop (brake)
+ *
+ * Uses plain power (no encoder needed), so it moves even if the encoder cable is bad.
+ * Config name must be "turret" (same as Tagalignment).
+ */
+@Disabled
+@TeleOp(name = "Turret Test", group = "Test")
+public class Turret_Test extends LinearOpMode {
+
+    static final double POWER = 0.4;   // gentle so it doesn't slam into anything
+
+    @Override
+    public void runOpMode() {
+        DcMotorEx turret = hardwareMap.get(DcMotorEx.class, "turret");
+        turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        telemetry.addLine("Turret Test ready. dpad LEFT / RIGHT to turn.");
+        telemetry.update();
+        waitForStart();
+
+        while (opModeIsActive()) {
+            double power = 0;
+            if (gamepad1.dpad_left)  power = POWER;
+            if (gamepad1.dpad_right) power = -POWER;
+            turret.setPower(power);
+
+            double amps = turret.getCurrent(CurrentUnit.AMPS);
+            double vel = turret.getVelocity();   // encoder ticks per second
+
+            String verdict;
+            if (power == 0) verdict = "idle - hold dpad left or right";
+            else if (Math.abs(vel) > 20) verdict = "MOTOR + ENCODER OK (moving and counting)";
+            else if (amps > 0.3) verdict = "getting power but encoder not counting -> encoder cable, or turret jammed";
+            else verdict = "NO current -> motor not getting power: check port, config name, power cable (or motor dead)";
+
+            telemetry.addData("Power sent", "%.2f", power);
+            telemetry.addData("Current", "%.2f A", amps);
+            telemetry.addData("Encoder", "%d ticks  (speed %.0f ticks/s)", turret.getCurrentPosition(), vel);
+            telemetry.addData("Port", turret.getPortNumber());
+            telemetry.addData("Result", verdict);
+            telemetry.update();
+        }
+        turret.setPower(0);
+    }
+}
