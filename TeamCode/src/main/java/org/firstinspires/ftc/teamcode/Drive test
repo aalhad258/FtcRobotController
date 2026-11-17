@@ -1,0 +1,118 @@
+package org.firstinspires.ftc.teamcode.pedroPathing;
+
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+
+/**
+ * DRIVE CHECK -- drive with the sticks, telemetry tells you if the robot does what you asked.
+ * EXACTLY the drive from blue 9 / red 9 (same motor names, directions and stick mixing), nothing added.
+ *   left stick up / down    = forward / back
+ *   left stick right / left = strafe right / left
+ *   right stick right / left = spin right / left
+ * telemetry: "YOU ASKED" (from the sticks) vs "ROBOT DID" (measured by the Pinpoint). they should match.
+ * driving at half speed so it's easy to watch.
+ */
+@TeleOp(name = "Drive Check", group = "Test")
+public class Drive_Test extends LinearOpMode {
+
+    // same as blue 9 / red 9
+    static final DcMotor.Direction LF_DIR = DcMotor.Direction.FORWARD;
+    static final DcMotor.Direction LB_DIR = DcMotor.Direction.FORWARD;
+    static final DcMotor.Direction RF_DIR = DcMotor.Direction.REVERSE;
+    static final DcMotor.Direction RB_DIR = DcMotor.Direction.FORWARD;
+    static final double SPEED = 1.0;
+    static final double DEADBAND = 0.05;
+
+    @Override
+    public void runOpMode() {
+        // drive cables are in different ports than before: FL = "rfm", FR = "lbm", BL = "rbm", BR = "lfm"
+        DcMotor lf = hardwareMap.get(DcMotor.class, "rfm");
+        DcMotor lb = hardwareMap.get(DcMotor.class, "rbm");
+        DcMotor rf = hardwareMap.get(DcMotor.class, "lbm");
+        DcMotor rb = hardwareMap.get(DcMotor.class, "lfm");
+        lf.setDirection(LF_DIR); lb.setDirection(LB_DIR); rf.setDirection(RF_DIR); rb.setDirection(RB_DIR);
+        for (DcMotor m : new DcMotor[]{lf, lb, rf, rb}) {
+            m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        }
+
+        // same Pinpoint setup as blue 9 / red 9 (works with "pinpoint" or "pinpoint ")
+        GoBildaPinpointDriver odo = hardwareMap.tryGet(GoBildaPinpointDriver.class, "pinpoint");
+        if (odo == null) odo = hardwareMap.tryGet(GoBildaPinpointDriver.class, "pinpoint ");
+        if (odo != null) {
+            odo.setOffsets(0, -5, DistanceUnit.INCH);
+            odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
+            odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.REVERSED);
+            odo.resetPosAndIMU();
+        }
+
+        telemetry.addLine("Drive Check ready. Drive with the sticks, compare YOU ASKED vs ROBOT DID.");
+        telemetry.update();
+        waitForStart();
+
+        double lastX = 0, lastY = 0, lastH = 0, fwdSpeed = 0, leftSpeed = 0, turnSpeed = 0;
+        ElapsedTime timer = new ElapsedTime();
+
+        while (opModeIsActive()) {
+            // ---------- drive: blue 9 / red 9 stick mixing, no extras ----------
+            double forward = db(-gamepad1.left_stick_y), strafe = db(gamepad1.left_stick_x), spin = db(gamepad1.right_stick_x);
+            double lfP = forward + strafe + spin;
+            double rfP = forward - strafe - spin;
+            double lbP = forward - strafe + spin;
+            double rbP = forward + strafe - spin;
+            double max = Math.max(1.0, Math.max(Math.max(Math.abs(lfP), Math.abs(rfP)), Math.max(Math.abs(lbP), Math.abs(rbP))));
+            lf.setPower(lfP / max * SPEED); rf.setPower(rfP / max * SPEED);
+            lb.setPower(lbP / max * SPEED); rb.setPower(rbP / max * SPEED);
+
+            // ---------- what you asked ----------
+            String asked = describe(forward, -strafe, -spin, 0.2, "stick");   // strafe right = -left, spin right = -turn left
+
+            // ---------- what the robot did (Pinpoint, robot's own forward / left / turn) ----------
+            String did = "no Pinpoint found (config name?)";
+            if (odo != null) {
+                odo.update();
+                Pose2D p = odo.getPosition();
+                double x = p.getX(DistanceUnit.INCH), y = p.getY(DistanceUnit.INCH), h = p.getHeading(AngleUnit.RADIANS);
+                double dt = Math.max(1e-3, timer.seconds()); timer.reset();
+                double dx = x - lastX, dy = y - lastY;
+                double f = (dx * Math.cos(h) + dy * Math.sin(h)) / dt, l = (-dx * Math.sin(h) + dy * Math.cos(h)) / dt;
+                double t = Math.toDegrees(AngleUnit.normalizeRadians(h - lastH)) / dt;
+                fwdSpeed += 0.3 * (f - fwdSpeed); leftSpeed += 0.3 * (l - leftSpeed); turnSpeed += 0.3 * (t - turnSpeed);
+                lastX = x; lastY = y; lastH = h;
+                did = describe(fwdSpeed / 20.0, leftSpeed / 20.0, turnSpeed / 90.0, 0.15, "robot");
+                telemetry.addData("ODOMETRY", "X %.1f in  Y %.1f in  heading %.1f deg", x, y, Math.toDegrees(h));
+            }
+
+            telemetry.addData("YOU ASKED", asked);
+            telemetry.addData("ROBOT DID", did);
+            telemetry.addLine("  ^ these two should say the same thing");
+            telemetry.addData("STICKS", "left x %.2f  left y %.2f  right x %.2f%s", gamepad1.left_stick_x, gamepad1.left_stick_y,
+                    gamepad1.right_stick_x, (forward == 0 && strafe == 0 && spin == 0) ? "" : "");
+            telemetry.addData("WHEEL POWER", "LF %+.2f  RF %+.2f  LB %+.2f  RB %+.2f",
+                    lfP / max * SPEED, rfP / max * SPEED, lbP / max * SPEED, rbP / max * SPEED);
+            boolean handsOff = Math.abs(gamepad1.left_stick_x) < 0.15 && Math.abs(gamepad1.left_stick_y) < 0.15 && Math.abs(gamepad1.right_stick_x) < 0.15;
+            if (handsOff && (Math.abs(gamepad1.left_stick_x) > DEADBAND || Math.abs(gamepad1.left_stick_y) > DEADBAND || Math.abs(gamepad1.right_stick_x) > DEADBAND))
+                telemetry.addLine("!! a stick reads NOT ZERO with your hands off = stick drift. replug the controller, START+A");
+            telemetry.update();
+        }
+        for (DcMotor m : new DcMotor[]{lf, lb, rf, rb}) m.setPower(0);
+    }
+
+    /** biggest of forward / left / turn-left, in words */
+    private static String describe(double fwd, double left, double turnLeft, double min, String who) {
+        double af = Math.abs(fwd), al = Math.abs(left), at = Math.abs(turnLeft);
+        if (Math.max(af, Math.max(al, at)) < min) return "STOPPED";
+        if (af >= al && af >= at) return fwd > 0 ? "FORWARD" : "BACK";
+        if (al >= af && al >= at) return left > 0 ? "STRAFE LEFT" : "STRAFE RIGHT";
+        return turnLeft > 0 ? "SPIN LEFT" : "SPIN RIGHT";
+    }
+
+    private static double db(double v) { return Math.abs(v) < DEADBAND ? 0 : v; }
+}
