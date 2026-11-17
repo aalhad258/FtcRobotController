@@ -1,0 +1,196 @@
+package org.firstinspires.ftc.teamcode.pedroPathing;
+
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+
+/**
+ * SHOOTER TEST - checks every shooter function on its own.
+ *
+ * Hardware config names:
+ *   "servo uno"  - hole-length servo, side 1
+ *   "servo dos"  - hole-length servo, side 2 (mirror of uno, moves in sync with it)
+ *   "servo tres" - angle-adjust servo
+ *   "shooter"    - shooter motor
+ *   "intake"     - intake motor (goBILDA 312 RPM)
+ *
+ * Controls (gamepad 1, PlayStation names -> FTC names):
+ *   D-pad UP    (hold) - uno + dos spin OUTWARD together -> back ramp moves FORWARD
+ *   D-pad DOWN  (hold) - uno + dos spin INWARD together  -> back ramp moves BACK
+ *   Triangle = Y (hold) - tres spins DOWN -> angle adjuster moves UP
+ *   Cross    = A (hold) - tres spins UP   -> angle adjuster moves DOWN
+ *   Circle   = B        - outtake motor ON
+ *   Square   = X        - outtake motor OFF
+ *   R trigger    (hold) - intake ON (let go = off)
+ *
+ * Servo type: set CONTINUOUS_SERVOS to match how the servos are set up in the
+ * Driver Hub config ("Servo" -> false, "Continuous Rotation Servo" -> true).
+ */
+
+@TeleOp(name = "Shooter + Intake Test", group = "Test")
+public class Joint_Test_Team extends LinearOpMode {
+
+    // ---------- settings ----------
+    static final boolean CONTINUOUS_SERVOS = false;
+
+    // Directions. If something moves the wrong way, flip ONLY that line.
+    // Uno and dos face each other, so dos is the mirror of uno: the SAME command
+    // to both turns them opposite ways, which moves both sides of the ramp the same way.
+    static final Servo.Direction UNO_DIR  = Servo.Direction.FORWARD;
+    static final Servo.Direction DOS_DIR  = Servo.Direction.REVERSE;
+    static final Servo.Direction TRES_DIR = Servo.Direction.FORWARD;
+    static final DcMotorSimple.Direction OUTTAKE_DIR = DcMotorSimple.Direction.FORWARD;
+
+    // Positional servos: start point, limits and speed (position units per second).
+    static final double HOLE_START = 0.50, HOLE_MIN = 0.0, HOLE_MAX = 1.0;
+    static final double ANGLE_START = 0.50, ANGLE_MIN = 0.0, ANGLE_MAX = 1.0;
+    static final double HOLE_SPEED = 0.40;              // servo uno
+    static final double DOS_SPEED_EXTRA = 0.01;         // servo dos moves this much faster than uno
+    static final double DOS_SPEED = HOLE_SPEED + DOS_SPEED_EXTRA;   // = 0.41
+    static final double ANGLE_SPEED = 0.30;
+
+    // Continuous servos: power while the button is held.
+    static final double HOLE_CR_POWER = 0.6;
+    static final double DOS_CR_POWER = HOLE_CR_POWER + DOS_SPEED_EXTRA;  // dos 0.01 faster here too
+    static final double ANGLE_CR_POWER = 0.5;
+
+    static final double OUTTAKE_POWER = 1.0;
+    static final double TICKS_PER_REV = 28.0;   // 6000 RPM (1:1) goBILDA motor
+
+    // Intake (from Intake_Test)
+    static final DcMotorSimple.Direction INTAKE_DIR = DcMotorSimple.Direction.FORWARD;
+    static final double INTAKE_POWER = 1.0;
+    static final double INTAKE_TICKS_PER_REV = 537.7;   // 312 RPM goBILDA motor
+
+    // ---------- hardware ----------
+    Servo uno, dos, tres;
+    CRServo unoCR, dosCR, tresCR;
+    DcMotorEx outtake;
+    DcMotorEx intake;
+    VoltageSensor battery;
+
+    @Override
+    public void runOpMode() {
+        if (CONTINUOUS_SERVOS) {
+            unoCR  = hardwareMap.get(CRServo.class, "servo uno");
+            dosCR  = hardwareMap.get(CRServo.class, "servo dos");
+            tresCR = hardwareMap.get(CRServo.class, "servo tres");
+            unoCR.setDirection(toMotorDir(UNO_DIR));
+            dosCR.setDirection(toMotorDir(DOS_DIR));
+            tresCR.setDirection(toMotorDir(TRES_DIR));
+        } else {
+            uno  = hardwareMap.get(Servo.class, "servo uno");
+            dos  = hardwareMap.get(Servo.class, "servo dos");
+            tres = hardwareMap.get(Servo.class, "servo tres");
+            uno.setDirection(UNO_DIR);
+            dos.setDirection(DOS_DIR);
+            tres.setDirection(TRES_DIR);
+        }
+
+        outtake = hardwareMap.get(DcMotorEx.class, "shooter");
+        outtake.setDirection(OUTTAKE_DIR);
+        outtake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        outtake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        intake = hardwareMap.get(DcMotorEx.class, "intake");
+        intake.setDirection(INTAKE_DIR);
+        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        intake.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        battery = hardwareMap.voltageSensor.iterator().next();
+
+        telemetry.addLine("Shooter Test ready.");
+        telemetry.addLine("Dpad up/down = ramp | Triangle/Cross = angle | Circle/Square = shooter on/off | R trigger = intake");
+        if (!CONTINUOUS_SERVOS) telemetry.addLine("On START the servos go to their start positions.");
+        telemetry.update();
+        waitForStart();
+
+        double holePos = HOLE_START;
+        double dosPos = HOLE_START;
+        double anglePos = ANGLE_START;
+        boolean motorOn = false;
+        ElapsedTime loopTimer = new ElapsedTime();
+
+        while (opModeIsActive()) {
+            double dt = loopTimer.seconds();
+            loopTimer.reset();
+
+            // ---- hole length: uno + dos, always the same command in the same loop ----
+            int holeCmd = 0;                                // +1 outward, -1 inward
+            if (gamepad1.dpad_up && !gamepad1.dpad_down) holeCmd = +1;
+            if (gamepad1.dpad_down && !gamepad1.dpad_up) holeCmd = -1;
+
+            // ---- angle: tres ----
+            int angleCmd = 0;                               // +1 servo down (adjuster up), -1 servo up (adjuster down)
+            if (gamepad1.y && !gamepad1.a) angleCmd = +1;
+            if (gamepad1.a && !gamepad1.y) angleCmd = -1;
+
+            if (CONTINUOUS_SERVOS) {
+                unoCR.setPower(holeCmd * HOLE_CR_POWER);
+                dosCR.setPower(holeCmd * DOS_CR_POWER);
+                tresCR.setPower(angleCmd * ANGLE_CR_POWER);
+            } else {
+                holePos  = clip(holePos  + holeCmd  * HOLE_SPEED  * dt, HOLE_MIN,  HOLE_MAX);
+                anglePos = clip(anglePos + angleCmd * ANGLE_SPEED * dt, ANGLE_MIN, ANGLE_MAX);
+                // dos is always DOS_SPEED/HOLE_SPEED times as far from the start as uno,
+                // so it moves 0.01 faster but never drifts out of step with uno.
+                dosPos = clip(HOLE_START + (holePos - HOLE_START) * (DOS_SPEED / HOLE_SPEED), HOLE_MIN, HOLE_MAX);
+                uno.setPosition(holePos);
+                dos.setPosition(dosPos);
+                tres.setPosition(anglePos);
+            }
+
+            // ---- outtake motor ----
+            if (gamepad1.b) motorOn = true;     // Circle
+            if (gamepad1.x) motorOn = false;    // Square
+            outtake.setPower(motorOn ? OUTTAKE_POWER : 0.0);
+            double rpm = Math.abs(outtake.getVelocity()) * 60.0 / TICKS_PER_REV;
+
+            // ---- intake: hold right trigger ----
+            boolean intakeOn = gamepad1.right_trigger > 0.2;
+            intake.setPower(intakeOn ? INTAKE_POWER : 0.0);
+            double intakeRpm = Math.abs(intake.getVelocity()) * 60.0 / INTAKE_TICKS_PER_REV;
+            double volts = battery.getVoltage();
+
+            // ---- telemetry ----
+            telemetry.addData("Ramp (uno+dos)", holeCmd > 0 ? "OUTWARD -> ramp forward"
+                    : holeCmd < 0 ? "INWARD -> ramp back" : "holding");
+            telemetry.addData("Angle (tres)", angleCmd > 0 ? "servo DOWN -> adjuster up"
+                    : angleCmd < 0 ? "servo UP -> adjuster down" : "holding");
+            if (!CONTINUOUS_SERVOS) {
+                telemetry.addData("Hole servo pos", "uno %.3f / dos %.3f  (dos speed %.2f vs uno %.2f)",
+                        holePos, dosPos, DOS_SPEED, HOLE_SPEED);
+                telemetry.addData("Angle servo pos", "%.3f", anglePos);
+                telemetry.addLine("Write down the positions at each end of travel -> set the MIN/MAX limits.");
+            }
+            telemetry.addData("Outtake", motorOn ? "ON (Square to stop)" : "OFF (Circle to start)");
+            telemetry.addData("Outtake RPM", "%.0f", rpm);
+            telemetry.addData("Intake", intakeOn ? "ON (R trigger held)" : "OFF (hold R trigger)");
+            telemetry.addData("Intake RPM", "%.0f   (motor max ~312)", intakeRpm);
+            telemetry.addData("Battery", "%.2f V%s", volts, volts < 12.5 ? "  - charge it: low voltage = lower shots" : "");
+            telemetry.update();
+        }
+
+        outtake.setPower(0);
+        intake.setPower(0);
+        if (CONTINUOUS_SERVOS) {
+            unoCR.setPower(0); dosCR.setPower(0); tresCR.setPower(0);
+        }
+    }
+
+    static double clip(double v, double lo, double hi) {
+        return Math.max(lo, Math.min(hi, v));
+    }
+
+    static DcMotorSimple.Direction toMotorDir(Servo.Direction d) {
+        return d == Servo.Direction.FORWARD ? DcMotorSimple.Direction.FORWARD : DcMotorSimple.Direction.REVERSE;
+    }
+}
