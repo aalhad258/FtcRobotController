@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
@@ -37,11 +38,7 @@ public class TeleOpClass extends OpMode {
     // FIELD CONFIGURATION
     // =========================================================
 
-    private static final double START_Y = 50.0;
-    private static final double START_X = 8.0;
-    private static final double START_HEADING = 0.0;
-
-    private static final double TARGET_Y = 50.0;
+    private static final double TARGET_Y = 94.0;
 
     private static final double TARGET_X_1 = 54.0;
     private static final double TARGET_X_2 = 89.0;
@@ -121,6 +118,7 @@ public class TeleOpClass extends OpMode {
 
         shooter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        shooter.setDirection(DcMotorSimple.Direction.REVERSE);
 
         PIDFCoefficients flywheelPIDF =
                 new PIDFCoefficients(
@@ -184,24 +182,13 @@ public class TeleOpClass extends OpMode {
 
     @Override
     public void start() {
-
-        double startX = START_X;
-        double startY = START_Y;
-        double startHeading = START_HEADING;
-
-        if (PoseStorage.hasPose) {
-            startX = PoseStorage.x;
-            startY = PoseStorage.y;
-            startHeading = PoseStorage.headingDeg;
-        }
-
         pinpoint.setPosition(
                 new Pose2D(
                         DistanceUnit.INCH,
-                        startX,
-                        startY,
-                        AngleUnit.DEGREES,
-                        startHeading
+                        8,
+                        94,
+                        AngleUnit.RADIANS,
+                        0
                 )
         );
 
@@ -484,7 +471,7 @@ public class TeleOpClass extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS) *
                         (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.3;
+        return targetRPM * 2.15;
     }
 
 

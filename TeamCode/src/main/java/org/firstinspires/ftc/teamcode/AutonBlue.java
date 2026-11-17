@@ -91,7 +91,7 @@ public class AutonBlue extends OpMode {
     static final double TARGET_Y = Y;
 
     // Current assumed launch angle.
-    static final double SHOOTING_ANGLE_DEG = 70.8;
+    static final double SHOOTING_ANGLE_DEG = 60;
 
     static final double SHOOTING_ANGLE_RAD =
             Math.toRadians(SHOOTING_ANGLE_DEG);
@@ -119,7 +119,7 @@ public class AutonBlue extends OpMode {
     static final double FEED_SECONDS = 3.0;
 
     // Motor powers
-    static final double INTAKE_POWER = 1.0;
+    static final double INTAKE_POWER = -1.0;
 
 
     // =========================================================
@@ -350,8 +350,6 @@ public class AutonBlue extends OpMode {
                 com.qualcomm.robotcore.hardware.DcMotor.RunMode
                         .STOP_AND_RESET_ENCODER
         );
-
-        shooter.setDirection(DcMotorSimple.Direction.REVERSE);
 
         shooter.setMode(
                 com.qualcomm.robotcore.hardware.DcMotor.RunMode
@@ -989,7 +987,7 @@ public class AutonBlue extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS)
                         * (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.8;
+        return targetRPM * 2.5;
     }
 
 
