@@ -91,7 +91,7 @@ public class AutonBlue extends OpMode {
     static final double TARGET_Y = Y;
 
     // Current assumed launch angle.
-    static final double SHOOTING_ANGLE_DEG = 60;
+    static final double SHOOTING_ANGLE_DEG = 65;
 
     static final double SHOOTING_ANGLE_RAD =
             Math.toRadians(SHOOTING_ANGLE_DEG);
@@ -112,7 +112,7 @@ public class AutonBlue extends OpMode {
     static final double FLYWHEEL_P = 2.0;
     static final double FLYWHEEL_I = 0.0;
     static final double FLYWHEEL_D = 0.5;
-    static final double FLYWHEEL_F = 9.85;
+    static final double FLYWHEEL_F = 14.1;
 
     // Shooting timings
     static final double SHOOTER_SPINUP_SECONDS = 1.5;
@@ -181,7 +181,7 @@ public class AutonBlue extends OpMode {
             new Pose(8, Y, Math.toRadians(90));
 
     private final Pose gardenPose =
-            new Pose(8, 125, Math.toRadians(90));
+            new Pose(8, 135, Math.toRadians(90));
 
     private final Pose flowerPose =
             new Pose(
@@ -987,7 +987,7 @@ public class AutonBlue extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS)
                         * (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.5;
+        return targetRPM * 2.6;
     }
 
 

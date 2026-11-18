@@ -146,7 +146,7 @@ public class Constants {
             // these rather than assuming symmetry (e.g. don't assume
             // left/right should mirror each other, since the O-roller +
             // name-swap combination breaks that intuition).
-            .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
             .leftRearMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)

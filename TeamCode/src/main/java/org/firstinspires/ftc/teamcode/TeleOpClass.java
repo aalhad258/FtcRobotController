@@ -50,7 +50,7 @@ public class TeleOpClass extends OpMode {
     // SHOOTER CONFIGURATION
     // =========================================================
 
-    static final double SHOOTING_ANGLE_DEG = 60;
+    static final double SHOOTING_ANGLE_DEG = 65;
     static final double SHOOTING_ANGLE_RAD =
             Math.toRadians(SHOOTING_ANGLE_DEG);
 
@@ -118,7 +118,6 @@ public class TeleOpClass extends OpMode {
 
         shooter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        shooter.setDirection(DcMotorSimple.Direction.REVERSE);
 
         PIDFCoefficients flywheelPIDF =
                 new PIDFCoefficients(
@@ -318,7 +317,7 @@ public class TeleOpClass extends OpMode {
             double targetTicksPerSec =
                     (calculatedRPM / 60.0) * TICKS_PER_REV;
 
-            shooter.setVelocity(-targetTicksPerSec);
+            shooter.setVelocity(targetTicksPerSec);
 
         } else {
 
@@ -471,7 +470,7 @@ public class TeleOpClass extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS) *
                         (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.15;
+        return targetRPM * 2.6;
     }
 
 

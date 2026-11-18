@@ -56,7 +56,7 @@ public class Drive {
         lbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rfMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        lfMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        lfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         lbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         rfMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         rbMotor.setDirection(DcMotorSimple.Direction.FORWARD);
