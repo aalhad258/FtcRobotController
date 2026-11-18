@@ -70,12 +70,12 @@ import java.util.TreeMap;
  * Hardware names: lfm, lbm, rfm, rbm, intake, shooter, odo, turret (DC motor 312 RPM + encoder),
  *                 limelight (Limelight 3A).
  */
-@TeleOp(name = "blue 19", group = "Linear OpMode")
+@TeleOp(name = "blue 21", group = "Linear OpMode")
 public class blue extends LinearOpMode {
 
     // ================= DRIVE =================
-    // directions: forward strafing + wheels fighting on spin = RF and LB flipped -> these are the fixed ones
-    static final DcMotor.Direction LF_DIR = DcMotor.Direction.FORWARD;
+    // directions: same as Drive_Test (WIRING 'A'), checked on the robot: all 6 moves right
+    static final DcMotor.Direction LF_DIR = DcMotor.Direction.REVERSE;
     static final DcMotor.Direction LB_DIR = DcMotor.Direction.FORWARD;
     static final DcMotor.Direction RF_DIR = DcMotor.Direction.REVERSE;
     static final DcMotor.Direction RB_DIR = DcMotor.Direction.FORWARD;
@@ -105,13 +105,21 @@ public class blue extends LinearOpMode {
 
     // ================= SHOT MATH =================
     static final double LAUNCH_DEG = 60;                 // FIXED launch angle (no angle servo)
-    static final double SHOOTER_RPM_BOOST = 10;          // added on top of the calculated shooter speed
+    static final double SHOOTER_RPM_BOOST = 0;           // (not used now: the speed rule below is the real number)
+    // SHOOTER SPEED RULE (measured on the field): 52 in = 3899 RPM. ~2.5 in closer = 5 RPM less, farther = 5 RPM more
+    //   -> 2 RPM per inch. never more than SPEED_MAX_RPM.
+    static final double SPEED_AT_52_RPM = 3899;
+    static final double RPM_PER_INCH = 2.0;              // 5 RPM per 2.5 in
+    static final double SPEED_MAX_RPM = 3995;            // HARD CAP
     static final double GRAVITY_IN_S2 = 386.09;
     static final double APEX_CLEAR_IN = 3.0;             // ball peaks less than this above the goal = touchy shot (warning only)
     static final double SHOOTER_EXIT_HEIGHT_IN = 17.5;   // floor -> where the ball leaves the wheel
     static final double GOAL_HEIGHT_IN = 54.5;           // MEASURED: floor -> goal
     static final double WHEEL_DIAMETER_IN = 3.78;        // 96 mm
-    static final double EXIT_PER_SURFACE = 0.32;         // shots short everywhere? LOWER. long? RAISE.
+    static final double EXIT_PER_SURFACE = 0.258;        // MEASURED: 3900 RPM makes the shot at 52 in (was 0.32 = too little RPM)
+    //   shots short everywhere? LOWER. long? RAISE.
+    static final double MAX_SHOT_DIST_IN = 70;           // farthest you can be on YOUR field (43 x 52 in from the goal = 67 in).
+    //   odometry / camera says farther? it's wrong -> speed uses this instead
     static final boolean MOVING_SHOT_COMP = true;        // aim ahead + change speed while driving
     static final double MOVE_SPEED_SIGN = +1;            // moving AWAY from the goal -> MORE speed, moving IN -> LESS
     static final double[] SPEED_TABLE_IN  = {24,  48,  72,  96,  120, 144};
@@ -120,7 +128,7 @@ public class blue extends LinearOpMode {
     // SHOT CALIBRATION: the physics picks the ball speed from distance + goal height. what it CAN'T know is how much of
     // the wheel's speed the ball really gets (grip, squish), and that changes with distance. so: practice once, fix the
     // trim at a few distances, press X at each -> saved here and blended between them. file survives restarts.
-    static final String CAL_FILE = System.getProperty("shotcal", "/sdcard/FIRST/shot_cal.txt");
+    static final String CAL_FILE = System.getProperty("shotcal", "/sdcard/FIRST/shot_cal_v2.txt");   // new file: old saved points were for the old speed math
     static final double CAL_MERGE_IN = 8;               // saving within this many inches of an old point replaces it
 
     // ================= FIELD (BLUE CELLs, field grid) =================
@@ -232,14 +240,12 @@ public class blue extends LinearOpMode {
         // Init Limelight Port Relay
         LimelightRelay.start();
 
-        // ---------- drive: exactly Drive Test ----------
-        // the drive cables are plugged into different ports than before (found with Drive Check):
-        //   front-left wheel = "rfm", front-right = "lbm", back-left = "rbm", back-right = "lfm"
-        // directions below did NOT change. plug the cables back the old way? -> put the old names back
-        DcMotor lf = hardwareMap.get(DcMotor.class, "rfm");
-        DcMotor lb = hardwareMap.get(DcMotor.class, "rbm");
-        DcMotor rf = hardwareMap.get(DcMotor.class, "lbm");
-        DcMotor rb = hardwareMap.get(DcMotor.class, "lfm");
+        // ---------- drive: exactly Drive Test (WIRING 'A') ----------
+        // each config name is its own wheel: "lfm" front-left, "rfm" front-right, "lbm" back-left, "rbm" back-right
+        DcMotor lf = hardwareMap.get(DcMotor.class, "lfm");
+        DcMotor lb = hardwareMap.get(DcMotor.class, "lbm");
+        DcMotor rf = hardwareMap.get(DcMotor.class, "rfm");
+        DcMotor rb = hardwareMap.get(DcMotor.class, "rbm");
         lf.setDirection(LF_DIR);
         lb.setDirection(LB_DIR);
         rf.setDirection(RF_DIR);
@@ -667,40 +673,34 @@ public class blue extends LinearOpMode {
         double realDist = Math.hypot(gx - x, gy - y);
         shotRealDist = realDist;
         shotTowardSpeed = MOVE_SPEED_SIGN * (vx * (gx - x) + vy * (gy - y)) / Math.max(realDist, 1);
-        double vStill = launchSpeed(realDist);
-        shotStillRpm = Double.isNaN(vStill) ? 0
-                : vStill / EXIT_PER_SURFACE * 60.0 / (Math.PI * WHEEL_DIAMETER_IN) * speedFactor(realDist) * trim;
+        shotStillRpm = speedRule(Math.min(realDist, MAX_SHOT_DIST_IN), trim);
 
-        double flight = 0, dist = realDist, v = Double.NaN;
+        // moving: the speed uses a "fake goal" shifted by (bot speed x flight time), the turret aims ahead
+        double flight = 0, dist = realDist;
         double aimX = gx, aimY = gy;
         int iterations = MOVING_SHOT_COMP ? 6 : 1;
         for (int i = 0; i < iterations; i++) {
             aimX = gx - vx * flight;             // turret lead: where the goal "will be"
             aimY = gy - vy * flight;
             dist = Math.hypot(gx - MOVE_SPEED_SIGN * vx * flight - x, gy - MOVE_SPEED_SIGN * vy * flight - y);
-            v = launchSpeed(dist);
-            if (Double.isNaN(v)) break;
-            flight = dist / (v * Math.cos(Math.toRadians(LAUNCH_DEG)));
+            double ballInS = speedRule(Math.min(dist, MAX_SHOT_DIST_IN), 1.0) / 60.0 * Math.PI * WHEEL_DIAMETER_IN * EXIT_PER_SURFACE;
+            flight = dist / Math.max(1, ballInS * Math.cos(Math.toRadians(LAUNCH_DEG)));
         }
-        if (Double.isNaN(v)) {
-            shotValid = false;
-            shotNote = String.format("TOO CLOSE (%.0f in): ball would fly over. back up", dist);
-            return;
-        }
-        double rpm = v / EXIT_PER_SURFACE * 60.0 / (Math.PI * WHEEL_DIAMETER_IN) * speedFactor(dist) * trim;
+        boolean distTooBig = realDist > MAX_SHOT_DIST_IN + 5;
+        dist = Math.min(dist, MAX_SHOT_DIST_IN);
         shotDistIn = dist;
         shotFlightS = flight;
         shotLeadDeg = Math.toDegrees(wrapRad(Math.atan2(aimY - y, aimX - x) - trueBearing));
-        if (rpm > SHOOTER_MAX_RPM) {
-            shotValid = false;
-            shotRpm = SHOOTER_MAX_RPM;
-            shotNote = String.format("TOO FAR (%.0f in needs %.0f RPM): move closer", dist, rpm);
-            return;
-        }
-        shotRpm = rpm;
+        shotRpm = speedRule(dist, trim);
         shotValid = true;
-        shotNote = apexAboveGoal(dist) < APEX_CLEAR_IN
-                ? String.format("ok, but %.0f in is a touchy shot - %.0f+ in is more reliable", dist, minShotDist()) : "ok";
+        shotNote = distTooBig ? String.format("odometry says %.0f in away - more than the field. check the START spot / Cells (using %.0f in)", realDist, MAX_SHOT_DIST_IN)
+                : shotRpm >= SPEED_MAX_RPM - 0.5 ? String.format("at the %.0f RPM cap", SPEED_MAX_RPM) : "ok";
+    }
+
+    /** shooter RPM for distance d: 3899 at 52 in, 2 RPM per inch, times your saved calibration + trim, max 3995 */
+    private double speedRule(double d, double trim) {
+        double rpm = (SPEED_AT_52_RPM + RPM_PER_INCH * (d - 52)) * speedFactor(d) * trim;
+        return Math.min(SPEED_MAX_RPM, rpm);
     }
 
     /** launch speed (in/s) at LAUNCH_DEG to reach goal height d inches away. NaN = not possible (too close) */
