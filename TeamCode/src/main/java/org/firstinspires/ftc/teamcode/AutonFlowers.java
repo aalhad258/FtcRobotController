@@ -35,6 +35,7 @@ public class AutonFlowers extends OpMode {
 
     private ElapsedTime shootTimer;
     private ElapsedTime tagCheckTimer;
+    private ElapsedTime flowerIntake;
 
     private Pose currentPose;
 
@@ -154,6 +155,9 @@ public class AutonFlowers extends OpMode {
         DIFF_DOWN,
 
         SHOOT_THIRD,
+        TO_FLOWER,
+        BACK_FLOWER,
+        SHOOT_FOURTH,
 
         DONE
     }
@@ -196,6 +200,13 @@ public class AutonFlowers extends OpMode {
                     Math.toRadians(180)
             );
 
+    private final Pose flowerPose =
+            new Pose(
+                    136,
+                    96,
+                    Math.toRadians(0)
+            );
+
 
     // =========================================================
     // PATHS
@@ -208,7 +219,8 @@ public class AutonFlowers extends OpMode {
     private PathChain gardenPathTwo;
     private PathChain gardenToDiffPath;
     private PathChain diffDownPath;
-
+    private PathChain toFlowerPath;
+    private PathChain backFlowerPath;
 
     // =========================================================
     // BUILD PATHS
@@ -275,6 +287,32 @@ public class AutonFlowers extends OpMode {
                         Math.toRadians(180)
                 )
                 .build();
+
+        toFlowerPath = follower.pathBuilder()
+                .addPath(
+                        new BezierLine(
+                                diffShotPose,
+                                flowerPose
+                        )
+                )
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(180),
+                        Math.toRadians(0)
+                )
+                .build();
+
+        backFlowerPath = follower.pathBuilder()
+                .addPath(
+                        new BezierLine(
+                                flowerPose,
+                                diffShotPose
+                        )
+                )
+                .setLinearHeadingInterpolation(
+                        Math.toRadians(0),
+                        Math.toRadians(180)
+                )
+                .build();
     }
 
 
@@ -301,6 +339,7 @@ public class AutonFlowers extends OpMode {
 
         shootTimer = new ElapsedTime();
         tagCheckTimer = new ElapsedTime();
+        flowerIntake = new ElapsedTime();
 
         turret = new TurretMechanism();
         turret.init(hardwareMap);
@@ -820,6 +859,7 @@ public class AutonFlowers extends OpMode {
                         )
                         .build();
                 follower.followPath(gardenPathTwo);
+                intake.setMotorSpeed(0);
                 setPathState(PathState.FARSHOT);
                 break;
 
@@ -873,11 +913,37 @@ public class AutonFlowers extends OpMode {
 
                 runShootingSequence(
                         3,
-                        PathState.DONE
+                        PathState.TO_FLOWER
                 );
+
+                follower.followPath(toFlowerPath, true);
 
                 break;
 
+            case TO_FLOWER:
+                if (!follower.isBusy()) {
+                    intake.setMotorSpeed(INTAKE_POWER);
+                    flowerIntake.reset();
+                    setPathState(PathState.BACK_FLOWER);
+                }
+                break;
+
+            case BACK_FLOWER:
+                if(flowerIntake.seconds() >= 3.0) {
+                    intake.setMotorSpeed(0);
+                    follower.followPath(backFlowerPath, true);
+                    setPathState(PathState.SHOOT_FOURTH);
+                }
+                break;
+
+            case SHOOT_FOURTH:
+                if(!follower.isBusy()) {
+                    runShootingSequence(
+                            4,
+                            PathState.DONE
+                    );
+                }
+                break;
 
             // =================================================
             // DONE
