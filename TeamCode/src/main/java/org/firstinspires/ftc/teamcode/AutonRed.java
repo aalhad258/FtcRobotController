@@ -74,7 +74,7 @@ public class AutonRed extends OpMode {
     static final double SHOOT_X = 13.0;
 
     static final double DIFF_SHOT_X =
-            FIELD_SIZE_IN - SHOOT_X; // 131.0
+            FIELD_SIZE_IN - SHOOT_X - 10; // 131.0
 
 
     // =========================================================
@@ -174,18 +174,18 @@ public class AutonRed extends OpMode {
             new Pose(SHOOT_X, Y, Math.toRadians(0));
 
     private final Pose startOnePose =
-            new Pose(14, Y, Math.toRadians(0));
+            new Pose(8, Y, Math.toRadians(0));
 
     private final Pose startTwoPose =
             new Pose(8, Y, Math.toRadians(90));
 
     private final Pose gardenPose =
-            new Pose(8, 135, Math.toRadians(90));
+            new Pose(0, 135, Math.toRadians(90));
 
     private final Pose diffCornerPose =
             new Pose(
                     DIFF_SHOT_X,
-                    gardenPose.getY(),
+                    120,
                     Math.toRadians(0)
             );
 
@@ -511,7 +511,7 @@ public class AutonRed extends OpMode {
                 Math.cos(Math.toRadians(desiredTurret))));
 
         // Turret travel limit (degrees from center, left/right)
-        final double TURRET_LIMIT_DEG = 90.0;
+        final double TURRET_LIMIT_DEG = 20.0;
 
         double commandedTurret;
         if (Math.abs(desiredTurret) <= TURRET_LIMIT_DEG) {
@@ -644,7 +644,7 @@ public class AutonRed extends OpMode {
 
             case CHECK_TAG_AFTER_FIRST:
 
-                if (tagCheckTimer.seconds() >= 1.0) {
+                if (tagCheckTimer.seconds() >= 4.0) {
                     sawTagAfterFirstShot = canSeeShootTag();
 
                     if (sawTagAfterFirstShot) {
@@ -941,7 +941,7 @@ public class AutonRed extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS)
                         * (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.6;
+        return targetRPM * 2.45;
     }
 
 
