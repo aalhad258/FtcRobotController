@@ -71,12 +71,10 @@ public class AutonBlue extends OpMode {
 
     static final double FIELD_SIZE_IN = 144.0;
 
-    static final double FLOWER_X = 60.0;
-
     static final double SHOOT_X = 13.0;
 
     static final double DIFF_SHOT_X =
-            FIELD_SIZE_IN - SHOOT_X; // 131.0
+            FIELD_SIZE_IN - SHOOT_X - 10; // 131.0
 
 
     // =========================================================
@@ -121,6 +119,8 @@ public class AutonBlue extends OpMode {
     // Motor powers
     static final double INTAKE_POWER = -1.0;
 
+    private boolean turretInRange;
+
 
     // =========================================================
     // AUTONOMOUS STATES
@@ -141,14 +141,13 @@ public class AutonBlue extends OpMode {
         DRIVETOGARDEN,
 
         CHECK_TAG,
+        DRIVEBACK,
 
         SHOOT_SECOND,
 
         RECHECK_TAG,
-
-        TO_FLOWER,
-
-        SAME_SHOT,
+        INTAKE,
+        FARSHOT,
 
         DIFF_SHOT,
 
@@ -175,25 +174,18 @@ public class AutonBlue extends OpMode {
             new Pose(SHOOT_X, Y, Math.toRadians(0));
 
     private final Pose startOnePose =
-            new Pose(14, Y, Math.toRadians(0));
+            new Pose(8, Y, Math.toRadians(0));
 
     private final Pose startTwoPose =
             new Pose(8, Y, Math.toRadians(90));
 
     private final Pose gardenPose =
-            new Pose(8, 135, Math.toRadians(90));
-
-    private final Pose flowerPose =
-            new Pose(
-                    FLOWER_X,
-                    gardenPose.getY(),
-                    Math.toRadians(0)
-            );
+            new Pose(0, 135, Math.toRadians(90));
 
     private final Pose diffCornerPose =
             new Pose(
                     DIFF_SHOT_X,
-                    flowerPose.getY(),
+                    120,
                     Math.toRadians(0)
             );
 
@@ -212,11 +204,9 @@ public class AutonBlue extends OpMode {
     private PathChain drivePath;
     private PathChain backPath;
     private PathChain gardenPath;
-    private PathChain flowerPath;
-    private PathChain sameShotPath;
-
+    private PathChain gardenBackPath;
+    private PathChain gardenPathTwo;
     private PathChain gardenToDiffPath;
-    private PathChain diffAcrossPathTwo;
     private PathChain diffDownPath;
 
 
@@ -255,26 +245,13 @@ public class AutonBlue extends OpMode {
                 )
                 .build();
 
-
-        // Garden -> flower
-        flowerPath = follower.pathBuilder()
-                .addPath(new BezierLine(gardenPose, flowerPose))
+        gardenBackPath = follower.pathBuilder()
+                .addPath(new BezierLine(gardenPose, startOnePose))
                 .setLinearHeadingInterpolation(
-                        Math.toRadians(90),
-                        flowerPose.getHeading()
+                        gardenPose.getHeading(),
+                        startOnePose.getHeading()
                 )
                 .build();
-
-
-        // Flower -> first shooting position
-        sameShotPath = follower.pathBuilder()
-                .addPath(new BezierLine(flowerPose, shootPose))
-                .setLinearHeadingInterpolation(
-                        flowerPose.getHeading(),
-                        shootPose.getHeading()
-                )
-                .build();
-
 
         // Garden -> far side
         // Used when tag #1 is not visible.
@@ -285,18 +262,6 @@ public class AutonBlue extends OpMode {
                         Math.toRadians(180)
                 )
                 .build();
-
-
-        // Flower -> far side
-        // Used when tag #2 is not visible.
-        diffAcrossPathTwo = follower.pathBuilder()
-                .addPath(new BezierLine(flowerPose, diffCornerPose))
-                .setLinearHeadingInterpolation(
-                        flowerPose.getHeading(),
-                        Math.toRadians(180)
-                )
-                .build();
-
 
         // Far-side corner -> far-side shooting position
         diffDownPath = follower.pathBuilder()
@@ -545,8 +510,21 @@ public class AutonBlue extends OpMode {
                 Math.sin(Math.toRadians(desiredTurret)),
                 Math.cos(Math.toRadians(desiredTurret))));
 
-        turret.update(desiredTurret);
+        // Turret travel limit (degrees from center, left/right)
+        final double TURRET_LIMIT_DEG = 20.0;
+
+        double commandedTurret;
+        if (Math.abs(desiredTurret) <= TURRET_LIMIT_DEG) {
+            // Target is reachable, track it
+            commandedTurret = desiredTurret;
+        } else {
+            // Target is out of range: hold at the nearest limit and wait
+            commandedTurret = Math.copySign(TURRET_LIMIT_DEG, desiredTurret);
+        }
+
+        turret.update(commandedTurret);
         turretErrorDeg = desiredTurret - turret.getTurretPositionDegrees();
+        turretInRange = Math.abs(desiredTurret) <= TURRET_LIMIT_DEG;
 
         telemetry.addData("Turret Error", "%.2f deg", turretErrorDeg);
 
@@ -666,7 +644,7 @@ public class AutonBlue extends OpMode {
 
             case CHECK_TAG_AFTER_FIRST:
 
-                if (tagCheckTimer.seconds() >= 1.0) {
+                if (tagCheckTimer.seconds() >= 4.0) {
                     sawTagAfterFirstShot = canSeeShootTag();
 
                     if (sawTagAfterFirstShot) {
@@ -759,8 +737,11 @@ public class AutonBlue extends OpMode {
 
                     routeMessage =
                             "Shot #2 -> Check tag #2 -> Flower";
-
-                    setPathState(PathState.SHOOT_SECOND);
+                    follower.followPath(
+                            gardenBackPath,
+                            true
+                    );
+                    setPathState(PathState.DRIVEBACK);
                 }
 
                 else {
@@ -782,9 +763,11 @@ public class AutonBlue extends OpMode {
                 break;
 
 
-            // =================================================
-            // SHOOT #2
-            // =================================================
+            case DRIVEBACK:
+                if (!follower.isBusy()) {
+                    setPathState(PathState.SHOOT_SECOND);
+                }
+                break;
 
             case SHOOT_SECOND:
 
@@ -798,7 +781,6 @@ public class AutonBlue extends OpMode {
 
             // =================================================
             // TAG CHECK #2
-            // ALWAYS GO TO FLOWER AFTER THIS CHECK.
             // =================================================
 
             case RECHECK_TAG:
@@ -811,7 +793,9 @@ public class AutonBlue extends OpMode {
                             "Tag STILL visible after shot #2";
 
                     routeMessage =
-                            "Flower -> First shooting position";
+                            "done";
+
+                    setPathState(PathState.DONE);
 
                 } else {
 
@@ -819,67 +803,37 @@ public class AutonBlue extends OpMode {
                             "Tag no longer visible after shot #2";
 
                     routeMessage =
-                            "Flower -> Far side";
+                            "Intake";
+
+                    setPathState(PathState.INTAKE);
+                    intake.setMotorSpeed(INTAKE_POWER);
                 }
-
-                intake.setMotorSpeed(INTAKE_POWER);
-
-                setPathState(PathState.TO_FLOWER);
-
-                follower.followPath(
-                        flowerPath,
-                        true
-                );
 
                 break;
 
+            case INTAKE:
+                gardenPathTwo = follower.pathBuilder()
+                        .addPath(new BezierLine(startOnePose, gardenPose))
+                        .setLinearHeadingInterpolation(
+                                currentPose.getHeading(),
+                                gardenPose.getHeading()
+                        )
+                        .build();
+                follower.followPath(gardenPathTwo);
+                setPathState(PathState.FARSHOT);
+                break;
 
-            // =================================================
-            // DRIVE TO FLOWER
-            // =================================================
-
-            case TO_FLOWER:
-
+            case FARSHOT:
                 if (!follower.isBusy()) {
+                    setPathState(PathState.DIFF_SHOT);
 
-                    intake.setMotorSpeed(0);
-
-                    if (sawTagAfterSecondShot) {
-
-                        setPathState(PathState.SAME_SHOT);
-
-                        follower.followPath(
-                                sameShotPath,
-                                true
-                        );
-
-                    } else {
-
-                        setPathState(PathState.DIFF_SHOT);
-
-                        follower.followPath(
-                                diffAcrossPathTwo,
-                                true
-                        );
-                    }
+                    follower.followPath(
+                            gardenToDiffPath,
+                            true
+                    );
                 }
 
                 break;
-
-
-            // =================================================
-            // RETURN TO FIRST SHOOTING POSITION
-            // =================================================
-
-            case SAME_SHOT:
-
-                if (!follower.isBusy()) {
-
-                    setPathState(PathState.SHOOT_THIRD);
-                }
-
-                break;
-
 
             // =================================================
             // DRIVE ACROSS FIELD
@@ -987,7 +941,7 @@ public class AutonBlue extends OpMode {
                 (velocity / WHEEL_RADIUS_METERS)
                         * (60.0 / (2.0 * Math.PI));
 
-        return targetRPM * 2.6;
+        return targetRPM * 2.45;
     }
 
 

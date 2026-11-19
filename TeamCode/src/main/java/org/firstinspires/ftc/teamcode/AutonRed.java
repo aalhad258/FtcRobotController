@@ -371,10 +371,10 @@ public class AutonRed extends OpMode {
 
         // Blue far-side CELL tags.
         // This tracks the initially upward-facing CELL only.
-        return (atlimelight.hasTag(42)
-                || atlimelight.hasTag(43)
-                || atlimelight.hasTag(44)
-                || atlimelight.hasTag(45));
+        return (atlimelight.hasTag(34)
+                || atlimelight.hasTag(35)
+                || atlimelight.hasTag(36)
+                || atlimelight.hasTag(37));
     }
 
 
