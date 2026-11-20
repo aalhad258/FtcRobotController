@@ -11,6 +11,9 @@ import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -51,11 +54,18 @@ import java.util.TreeMap;
  *   LEFT TRIGGER    = shooter ON / OFF (press once = on, press again = off). stays on while you intake.
  *   (M1 / M2 back buttons: nothing)
  *                     rumbles when the shot is READY -> then hold right trigger to feed
- *   dpad up / down  = shot strength +/- 1% (short? up. long? down). shown as "Trim"
- *   X / SQUARE      = SAVE: "this trim is right at THIS distance". saved on the Control Hub, used every match
- *                     after (TeleOp + auton) and blended between distances -> no more adjusting in matches
- *   dpad left/right = servo uno + dos (hold): move them together, dos 0.01 faster. let go = they STAY there.
- *                     they never move on their own. (turret is auto only now)
+ *   shooter speed   = AUTOMATIC from the distance (pollen: 3384 RPM at 52 in, 2 RPM per inch, MAX 3420;
+ *                     nectar: its own physics speed - 10 RPM)
+ *   dpad up / down  = servo TRES: up = increase, down = decrease. small step per tap (TRES_DPAD_STEP)
+ *   servo tres      = MANUAL with dpad up / down only. it does NOT move at start: it stays put until you tap the dpad.
+ *   NECTAR / POLLEN = AUTOMATIC. the color sensor ("color") in the intake path checks every ball while you intake,
+ *                     every loop, at the same time as the turret aim, tres angle and shooter speed:
+ *                       nectar (any red or blue) -> servo uno + dos open the gap to 76 deg (dos +0.01) AND the shooter
+ *                       switches to the NECTAR speed. pollen (yellow) -> pollen gap (0 deg) + pollen speed.
+ *                     the gap holds for 4 s of intaking after a ball passes the sensor (nectar + pollen in a row
+ *                     don't confuse it). while the gap is moving the intake waits a moment.
+ *   A / CROSS       = force POLLEN gap      B / CIRCLE = force NECTAR gap      X / SQUARE = back to AUTO
+ *   (dpad left/right: nothing now -- uno + dos are automatic. turret is auto only)
  *   Y / TRIANGLE    = switch which tag to track: ALL RED -> 0 -> 1 -> ... -> 7 -> ALL RED
  *   BACK / SHARE    = reset position -- ONLY with the robot on the START spot
  *
@@ -70,7 +80,7 @@ import java.util.TreeMap;
  * Hardware names: lfm, lbm, rfm, rbm, intake, shooter, odo, turret (DC motor 312 RPM + encoder),
  *                 limelight (Limelight 3A).
  */
-@TeleOp(name = "red 19", group = "Linear OpMode")
+@TeleOp(name = "red 29", group = "Linear OpMode")
 public class red extends LinearOpMode {
 
     // ================= DRIVE =================
@@ -93,7 +103,7 @@ public class red extends LinearOpMode {
     static final DcMotorSimple.Direction SHOOTER_DIRECTION = DcMotorSimple.Direction.REVERSE;
     static final double SHOOTER_TICKS_PER_REV = 28;
     static final double SHOOTER_MAX_RPM = 5000;          // HARD CAP
-    static final double SHOOTER_IDLE_RPM = 3600;         // if there's no shot answer (too close etc.)
+    static final double SHOOTER_IDLE_RPM = 3420;         // if there's no shot answer (too close etc.)
     static final double RPM_TOLERANCE = 40;              // READY only when within this many RPM of the target...
     static final double READY_HOLD_S = 0.15;             // ...for this long in a row (not while still speeding up)
     // simple speed control: power = target / TOP_RPM x (12 V / battery) + KP x (target - actual). can't run away
@@ -106,11 +116,11 @@ public class red extends LinearOpMode {
     // ================= SHOT MATH =================
     static final double LAUNCH_DEG = 60;                 // FIXED launch angle (no angle servo)
     static final double SHOOTER_RPM_BOOST = 0;           // (not used now: the speed rule below is the real number)
-    // SHOOTER SPEED RULE (measured on the field): 52 in = 3899 RPM. ~2.5 in closer = 5 RPM less, farther = 5 RPM more
-    //   -> 2 RPM per inch. never more than SPEED_MAX_RPM.
-    static final double SPEED_AT_52_RPM = 3899;
+    // SHOOTER SPEED RULE (pollen): lowered 150 more: FARTHEST shot (70 in) is 3420 -> 52 in = 3384. 2 RPM per inch.
+    static final double SPEED_AT_52_RPM = 3384;          // (was 3534, 3564, 3899 before that)
     static final double RPM_PER_INCH = 2.0;              // 5 RPM per 2.5 in
-    static final double SPEED_MAX_RPM = 3995;            // HARD CAP
+    static final double SPEED_MAX_RPM = 3420;            // HARD CAP for pollen (was 3570)
+    static final double TRIM_STEP_PCT = 0.01;            // (not used now: dpad up / down runs servo tres)
     static final double GRAVITY_IN_S2 = 386.09;
     static final double APEX_CLEAR_IN = 3.0;             // ball peaks less than this above the goal = touchy shot (warning only)
     static final double SHOOTER_EXIT_HEIGHT_IN = 17.5;   // floor -> where the ball leaves the wheel
@@ -153,7 +163,7 @@ public class red extends LinearOpMode {
     static final double TURRET_GEAR_RATIO = 1.0;              // motor turns per 1 turret turn
     static final double TICKS_PER_TURRET_DEG = TURRET_MOTOR_TICKS_PER_REV * TURRET_GEAR_RATIO / 360.0;
     static final double TURRET_TOP_DEG_PER_S = TURRET_MOTOR_RPM * 360.0 / 60.0 / TURRET_GEAR_RATIO;
-    static final double MAX_TURRET_DEG_PER_S = 0.8 * TURRET_TOP_DEG_PER_S;   // ~1500 deg/s (was capped at 360 -> fell behind fast spins)
+    static final double MAX_TURRET_DEG_PER_S = 1.0 * TURRET_TOP_DEG_PER_S;   // FULL speed: 1872 deg/s (312 RPM)
     static final double KP = 10.0;                        // how hard it chases: deg/s of turret speed per degree it's off
     static final double TURN_FF_GAIN = 1.0;
     // the turret motor takes a moment to change speed, so it was always a bit BEHIND the robot's turn and then kept
@@ -163,17 +173,55 @@ public class red extends LinearOpMode {
     static final double STRAFE_FF_GAIN = 1.0;
     static final boolean LATENCY_COMP = true;            // the cam pic is a lil old by the time we get it, this fixes that
     static final double ON_TARGET_DEG = 1.5;
+    static final double TURRET_ACCEL_DEG_S2 = 4000;      // SMOOTH: it slows down as it gets close, so it stops ON the tag
+    //   instead of spinning past it. still overshoots? lower. too lazy? raise
     static final double MANUAL_DEG_PER_S = 90;
 
-    // ================= SERVO UNO + DOS (manual only, dpad left / right) =================
-    // works whether the config says "Servo" or "Continuous Rotation Servo" (the code checks).
-    // they NEVER move unless you hold dpad left/right. dos always gets 0.01 more than uno so they stay together.
+    // ================= NECTAR / POLLEN: color sensor + servo uno + dos (the shooter gap) =================
+    // same logic as Nectar Test RED / BLUE (tested in the sim). config names: "color", "servo uno", "servo dos"
+    static final double POLLEN_DIAM_IN = 2.8, NECTAR_DIAM_IN = 3.6;
     static final Servo.Direction UNO_DIR = Servo.Direction.FORWARD;
-    static final Servo.Direction DOS_DIR = Servo.Direction.REVERSE;   // mirror of uno. wrong way? flip ONLY this line
-    static final double UNO_DOS_START = 0.50;            // normal servos: where they are (their starting point)
-    static final double UNO_SPEED = 0.40;                // normal servos: position per second while held
-    static final double UNO_CR_POWER = 0.60;             // continuous servos: power while held
-    static final double DOS_EXTRA = 0.01;                // dos: +0.01 (speed for normal servos, power for continuous)
+    static final Servo.Direction DOS_DIR = Servo.Direction.REVERSE;   // mirror of uno
+    static final double UNO_POLLEN_POS = 0.0, DOS_POLLEN_POS = 0.0;   // servo angle 0 = right squeeze on POLLEN (the end, not the middle)
+    static final double NECTAR_DEG = 76;                 // nectar opening (same as the Nectar Test)
+    static final double GAP_SERVO_RANGE_DEG = 300;       // goBILDA servo: 300 deg for position 0 -> 1
+    static final int OPEN_SIGN = +1;                     // nectar opens toward a bigger position
+    static final double DOS_EXTRA = 0.01;                // dos gets 0.01 more than uno when open
+    static final double GAP_SERVO_DEG_PER_S = 300;       // while uno + dos turn, the intake waits (no ball hits a half-open gap)
+    static final double GAP_SERVO_SETTLE_S = 0.03;
+    static final double COMPRESSION_HOLD_S = 4.0;        // a ball keeps its gap for 4 s of intaking after it leaves the sensor
+    // ball detection (gray ramp, bright yellow pollen, medium red + dark blue nectar)
+    static final float SENSOR_GAIN = 8;
+    static final double BALL_CLOSE_MAX_IN = 3.0, BALL_MARGIN_IN = 0.3, BALL_LEAVE_EXTRA_IN = 0.2;
+    static final double BRIGHT_JUMP = 2.0, BRIGHT_MIN = 0.15;
+    static final double COLOR_CHANGE = 0.10;             // color mix this different from the gray ramp = a ball
+    static final double MIN_COLORFUL = 0.15;
+    static final double RED_HUE_MAX = 30, RED_HUE_MIN_WRAP = 300;   // red nectar: 0-30 / 300-360
+    static final double POLLEN_HUE_MIN = 38, POLLEN_HUE_MAX = 110;  // pollen: yellow
+    static final double BLUE_HUE_MIN = 150, BLUE_HUE_MAX = 300;     // blue nectar
+    static final int FRAMES_TO_SWITCH = 3;
+    // NECTAR SHOT: bigger + heavier ball. the pollen speed rule above is measured; nectar speed = pollen speed x a factor
+    // from physics (air drag on a bigger / heavier ball + how much the flywheel slows down launching a heavier ball).
+    static final double POLLEN_WEIGHT_G = 15;            // MEASURE (kitchen scale)
+    static final double NECTAR_WEIGHT_G = 30;            // MEASURE
+    static final double FLYWHEEL_INERTIA_KGM2 = 2.3e-4;  // shooter wheel(s) + motor, estimate (goBILDA 96 mm wheels)
+    static final double NECTAR_SPEED_TUNE = 1.00;        // nectar shots short? raise a little (1.02). long? lower
+    static final double NECTAR_MAX_RPM = 3420;           // same cap as pollen
+    static final double NECTAR_RPM_OFFSET = -10;         // nectar: 10 RPM less than its physics speed
+
+    // ================= SERVO TRES (launch angle, automatic) =================
+    // tres follows the distance to the goal every loop: farther = more angle. 45 deg of servo turn = 3 gear teeth.
+    static final Servo.Direction TRES_DIR = Servo.Direction.FORWARD;   // (kept: so the START spot stays where it was)
+    static final double TRES_TURN_SIGN = -1;             // -1 = backing up spins tres DOWN / OUTWARD (was +1 = up / inward)
+    static final double TRES_RANGE_DEG = 300;            // goBILDA servo: 300 deg for position 0 -> 1
+    static final double TRES_DPAD_STEP = 0.01;           // dpad tap = this much servo position (0.01 = 3 deg). too much? 0.005
+    static final double TRES_START_POS = 0.0;            // what the code counts from on the FIRST dpad tap (servo position)
+    static final double TRES_START_DEG = 0;              // tres starts at servo position 0 and STAYS there (was 45)
+    static final double TRES_MAX_DEG = 0;                // = start: tres does not move with distance now (was 90)
+    static final double TRES_REF_IN = 52;                // at this distance (or closer) tres sits at the start angle
+    static final double TRES_DEG_PER_IN = 4.5;           // each inch farther = 4.5 deg more -> the full 45 deg over 10 in
+    static final double TRES_SMOOTH_S = 0.15;            // smooths out odometry / camera jumps (steady, no jitter)
+    static final double TRES_STEP_DEG = 0.5;             // only send a new position when it changed this much (no buzzing)
     static final double OMEGA_NOISE_DEG_S = 3;
     static final double TURRET_MIN_DEG = -135, TURRET_MAX_DEG = 135;   // (you widened these) VERIFY the wires
     static final double SEARCH_DEG_PER_S = 60;           // how fast it sweeps when it's looking for the tag
@@ -187,7 +235,11 @@ public class red extends LinearOpMode {
     // ================= HARDWARE =================
     private DcMotorEx intake, outtake, turret;
     private Servo uno, dos;                             // manual (dpad left/right), if set up as normal servos
-    private CRServo unoCR, dosCR;                       // same, if set up as continuous
+    private Servo tres;                                 // launch angle (automatic)
+    private CRServo unoCR, dosCR;                       // (not used: the gap needs normal servos)
+    private NormalizedColorSensor color;                // nectar / pollen sensor
+    private DistanceSensor colorDist;
+    private static final double[] nectarFactor = new double[81];   // nectar RPM / pollen RPM, for 0..80 in
     private GoBildaPinpointDriver odo;
 
     // RED goal in odometry terms (0,0 = start spot, X = robot forward, Y = robot left)
@@ -220,6 +272,8 @@ public class red extends LinearOpMode {
     // turret aiming state (camera + odometry)
     private boolean goalFromCamera = false;              // false = goal is the field estimate, true = the camera put it there
     private final double[] cellX = new double[2], cellY = new double[2];   // each CELL's spot (odometry coords)
+    private final double[] estX = new double[2], estY = new double[2];     // the field estimate (from CELL_FIELD_XY)
+    static final double CAM_DIST_TRUST = 0.30;           // camera distance used only if within 30% of the field estimate
     private final boolean[] cellFromCamera = new boolean[2];
     private int activeCell = START_CELL;                 // the CELL we aim + shoot at
     private double lastTx = 0, lastTagDist = Double.NaN;
@@ -269,15 +323,25 @@ public class red extends LinearOpMode {
         telemetry.addData("Limelight live view", "http://192.168.43.1:5801  (laptop on ROBOT WiFi)");
 
         VoltageSensor battery = hardwareMap.voltageSensor.iterator().next();
+        tres = hardwareMap.get(Servo.class, "servo tres");
+        tres.setDirection(TRES_DIR);
         uno = hardwareMap.tryGet(Servo.class, "servo uno");
         dos = hardwareMap.tryGet(Servo.class, "servo dos");
-        if (uno == null) unoCR = hardwareMap.tryGet(CRServo.class, "servo uno");
-        if (dos == null) dosCR = hardwareMap.tryGet(CRServo.class, "servo dos");
         if (uno != null) uno.setDirection(UNO_DIR);
         if (dos != null) dos.setDirection(DOS_DIR);
-        if (unoCR != null) unoCR.setDirection(UNO_DIR == Servo.Direction.FORWARD ? DcMotorSimple.Direction.FORWARD : DcMotorSimple.Direction.REVERSE);
-        if (dosCR != null) dosCR.setDirection(DOS_DIR == Servo.Direction.FORWARD ? DcMotorSimple.Direction.FORWARD : DcMotorSimple.Direction.REVERSE);
-        // nothing is sent to uno / dos here -> they don't move at INIT or START
+        color = hardwareMap.tryGet(NormalizedColorSensor.class, "color");
+        if (color != null) color.setGain(SENSOR_GAIN);
+        colorDist = color instanceof DistanceSensor ? (DistanceSensor) color : null;
+        // what "no ball" looks like (gray ramp) -- keep the intake path EMPTY during INIT
+        double empty = Double.NaN, emptyBright = 0;
+        double[] rampMix = new double[3];
+        if (colorDist != null) { double sum = 0; int n = 0; for (int i = 0; i < 10; i++) { double d = colorDist.getDistance(DistanceUnit.INCH); if (!Double.isNaN(d)) { sum += d; n++; } } empty = n > 0 ? sum / n : Double.NaN; }
+        if (color != null) for (int i = 0; i < 10; i++) { NormalizedRGBA e = color.getNormalizedColors(); double t = Math.max(1e-6, e.red + e.green + e.blue);
+            emptyBright += t / 10; rampMix[0] += e.red / t / 10; rampMix[1] += e.green / t / 10; rampMix[2] += e.blue / t / 10; }
+        double ballIn = Double.isNaN(empty) ? BALL_CLOSE_MAX_IN : Math.max(0.4, Math.min(BALL_CLOSE_MAX_IN, empty - BALL_MARGIN_IN));
+        double ballOut = ballIn + BALL_LEAVE_EXTRA_IN;
+        double brightIn = Math.max(BRIGHT_MIN, emptyBright * BRIGHT_JUMP);
+        buildNectarFactor();                                // nectar speed physics, once
 
         intake.setDirection(INTAKE_DIRECTION);
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -302,17 +366,32 @@ public class red extends LinearOpMode {
         odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.REVERSED);
         odo.resetPosAndIMU();
         placeGoal();
-        loadCal();
+        // speed is fully automatic now: no saved calibration points are used
 
         telemetry.addData("CODE", "drive v5 | LF %s  LB %s  RF %s  RB %s", LF_DIR, LB_DIR, RF_DIR, RB_DIR);
         telemetry.addData("Status", "Ready. Robot on the START spot, turret STRAIGHT AHEAD.");
         telemetry.update();
         waitForStart();
+        double tresDeg = TRES_START_DEG, tresSent = TRES_START_DEG;
+        // START: tres is NOT sent anywhere -> it stays exactly where it is when you press start
+        if (uno != null) uno.setPosition(UNO_POLLEN_POS);   // START: uno + dos at the POLLEN gap
+        if (dos != null) dos.setPosition(DOS_POLLEN_POS);
 
         boolean shooterOn = false, prevLT = false, prevX = false, prevY = false, prevBack = false, prevUp = false, prevDown = false, wasReady = false;
-        double unoPos = UNO_DOS_START, dosPos = UNO_DOS_START;
-        boolean unoDosTouched = false;                      // nothing sent to uno/dos until you press dpad left/right
-        double trim = 1.0;
+        // nectar / pollen tracking (balls between the sensor and the shooter, in order)
+        String gapMode = "AUTO";                            // AUTO, POLLEN (A), NECTAR (B)
+        boolean wasThere = false, autoNectar = false, prevNectarShot = false;
+        double feedClock = 0, feedPower = 0, lastGapDeg = 0, gapBusyUntil = 0, speedWaitUntil = 0;
+        double[] cur = null;
+        char curKind = '?', streakKind = '?';
+        int streak = 0;
+        double streakStart = 0;
+        java.util.ArrayDeque<double[]> line = new java.util.ArrayDeque<>();   // {1 nectar / 0 pollen / -1 not sure, last seen}
+        ElapsedTime runClock = new ElapsedTime();
+        String seenName = color == null ? "no \"color\" sensor in config" : "NOTHING";
+        double trim = 1.0;                                  // speed trim: fixed (dpad runs tres now)
+        double tresPosNow = TRES_START_POS;                 // servo tres position the dpad changes
+        boolean tresTapped = false;
         double lastX = Double.NaN, lastY = 0, lastHeading = 0, vx = 0, vy = 0;
         double lastOmegaDeg = 0, alphaDeg = 0;
         double forwardCmd = 0, strafeCmd = 0, spinCmd = 0;      // smoothed stick values
@@ -387,11 +466,15 @@ public class red extends LinearOpMode {
             if (tagInView) {
                 lastTx = tag[0];
                 lastTagDist = tag[1];
-                // camera direction (robot heading + turret encoder angle - tx) + distance -> tag spot (odometry coords)
-                if (!Double.isNaN(tag[1]) && Math.abs(omegaDeg) < MAP_MAX_TURN_DEG_S && Math.abs(turretRateDeg) < MAP_MAX_TURN_DEG_S) {
-                    double dirRad = heading + Math.toRadians(turretDeg - tag[0]);
-                    double mx = x + tag[1] * Math.cos(dirRad), my = y + tag[1] * Math.sin(dirRad);
+                // LAST SEEN SPOT: the camera's DIRECTION (robot heading + turret angle - tx) is exact. its distance can be off
+                // (camera heights not measured), so: camera distance only if it agrees with the field estimate, else the
+                // estimate's distance. tag lost -> odometry aims at this spot (right direction even if the distance is off)
+                if (Math.abs(omegaDeg) < MAP_MAX_TURN_DEG_S && Math.abs(turretRateDeg) < MAP_MAX_TURN_DEG_S) {
                     int c = cellOf(tagId);
+                    double estD = Math.hypot(estX[c] - x, estY[c] - y);
+                    double useD = (!Double.isNaN(tag[1]) && Math.abs(tag[1] - estD) <= CAM_DIST_TRUST * estD) ? tag[1] : estD;
+                    double dirRad = heading + Math.toRadians(turretDeg - tag[0]);
+                    double mx = x + useD * Math.cos(dirRad), my = y + useD * Math.sin(dirRad);
                     if (!cellFromCamera[c]) { cellX[c] = mx; cellY[c] = my; cellFromCamera[c] = true; }
                     else { cellX[c] += TAG_SMOOTHING * (mx - cellX[c]); cellY[c] += TAG_SMOOTHING * (my - cellY[c]); }
                 }
@@ -399,23 +482,63 @@ public class red extends LinearOpMode {
             }
             goalX = cellX[activeCell]; goalY = cellY[activeCell]; goalFromCamera = cellFromCamera[activeCell];
 
+            // ================= NECTAR / POLLEN: color sensor -> uno + dos gap (every loop, while everything else runs) =================
+            if (gamepad1.a) gapMode = "POLLEN";
+            if (gamepad1.b) gapMode = "NECTAR";
+            if (gamepad1.x) gapMode = "AUTO";
+            if (feedPower > 0) feedClock += dt;             // balls only move toward the shooter while the intake pulls IN
+            if (feedPower < 0) { line.clear(); wasThere = false; }   // intake reversed: balls go back out, start the line over
+            boolean ballThere = false; double hue = 0, colorful = 0;
+            if (color != null) {
+                NormalizedRGBA c = color.getNormalizedColors();
+                double[] hs = hueSat(c.red, c.green, c.blue); hue = hs[0]; colorful = hs[1];
+                double inches = colorDist != null ? colorDist.getDistance(DistanceUnit.INCH) : Double.NaN;
+                double bright = c.red + c.green + c.blue, tb = Math.max(1e-6, bright);
+                double colorDiff = Math.sqrt(Math.pow(c.red / tb - rampMix[0], 2) + Math.pow(c.green / tb - rampMix[1], 2) + Math.pow(c.blue / tb - rampMix[2], 2));
+                boolean byDistance = colorDist != null && inches <= (wasThere ? ballOut : ballIn);
+                boolean byBrightness = bright >= (wasThere ? brightIn * 0.8 : brightIn);
+                boolean byColor = colorDiff >= (wasThere ? COLOR_CHANGE * 0.7 : COLOR_CHANGE) && bright > emptyBright * 0.25;
+                ballThere = byDistance || byBrightness || byColor;
+            }
+            String cls = classifyBall(hue, colorful);
+            boolean sure = !cls.equals("UNSURE");
+            char kind = !ballThere ? '-' : !sure ? 'U' : cls.equals("YELLOW") ? 'P' : 'N';
+            seenName = color == null ? seenName : !ballThere ? "NOTHING" : !sure ? "checking..." : kind == 'P' ? "POLLEN" : "NECTAR (" + cls.toLowerCase() + ")";
+            if (kind == streakKind) streak++; else { streakKind = kind; streak = 1; streakStart = feedClock; }
+            if (ballThere && !wasThere) { cur = new double[]{-1, feedClock}; line.addLast(cur); curKind = '?'; }
+            if (ballThere && (kind == 'N' || kind == 'P') && streak >= FRAMES_TO_SWITCH) {
+                if (curKind == '?') { curKind = kind; cur[0] = kind == 'N' ? 1 : 0; }
+                else if (kind != curKind) { cur[1] = streakStart; cur = new double[]{kind == 'N' ? 1 : 0, feedClock}; line.addLast(cur); curKind = kind; }
+            }
+            if (ballThere) cur[1] = feedClock;
+            if (!ballThere && wasThere && cur != null && cur[0] < 0) cur[0] = 0;   // left without a clear color -> pollen
+            wasThere = ballThere;
+            while (!line.isEmpty() && !(ballThere && line.peekFirst() == cur) && feedClock > line.peekFirst()[1] + COMPRESSION_HOLD_S) line.removeFirst();
+            if (!line.isEmpty() && line.peekFirst()[0] >= 0) autoNectar = line.peekFirst()[0] == 1;   // next ball at the shooter
+            boolean nectarShot = gapMode.equals("NECTAR") || (gapMode.equals("AUTO") && autoNectar);
+            double gapDeg = nectarShot ? NECTAR_DEG : 0;
+            if (Math.abs(gapDeg - lastGapDeg) > 0.01) {      // gap changing -> intake waits until uno + dos get there
+                gapBusyUntil = Math.max(gapBusyUntil, runClock.seconds()) + Math.abs(gapDeg - lastGapDeg) / GAP_SERVO_DEG_PER_S + GAP_SERVO_SETTLE_S;
+                lastGapDeg = gapDeg;
+            }
+            if (nectarShot != prevNectarShot) speedWaitUntil = runClock.seconds() + 1.0;   // ball type changed: let the shooter re-settle
+            prevNectarShot = nectarShot;
+            double gapMove = OPEN_SIGN * gapDeg / GAP_SERVO_RANGE_DEG;
+            double unoPos = Math.max(0, Math.min(1, UNO_POLLEN_POS + gapMove));
+            double dosPos = Math.max(0, Math.min(1, DOS_POLLEN_POS + gapMove + (nectarShot ? OPEN_SIGN * DOS_EXTRA : 0)));
+            if (uno != null) uno.setPosition(unoPos);
+            if (dos != null) dos.setPosition(dosPos);
+            boolean gapMoving = runClock.seconds() < gapBusyUntil;
+
             // ================= SHOT =================
-            if (gamepad1.dpad_up && !prevUp) trim += TRIM_STEP;
-            if (gamepad1.dpad_down && !prevDown) trim = Math.max(0.5, trim - TRIM_STEP);
+            // speed is picked on its own from the distance
+            // dpad up / down = servo TRES (up = increase, down = decrease), one small step per tap
+            if (gamepad1.dpad_up && !prevUp)   { tresPosNow = Math.min(1.0, tresPosNow + TRES_DPAD_STEP); tres.setPosition(tresPosNow); tresTapped = true; }
+            if (gamepad1.dpad_down && !prevDown) { tresPosNow = Math.max(0.0, tresPosNow - TRES_DPAD_STEP); tres.setPosition(tresPosNow); tresTapped = true; }
             prevUp = gamepad1.dpad_up; prevDown = gamepad1.dpad_down;
             solveShot(x, y, vx, vy, trim);
-            // X = save "the current trim is right at this distance" -> becomes part of the automatic speed
-            if (gamepad1.x && !prevX) {
-                if (shotValid) {
-                    double d = shotRealDist, f = speedFactor(d) * trim;
-                    cal.entrySet().removeIf(e -> Math.abs(e.getKey() - d) < CAL_MERGE_IN);
-                    cal.put(d, f);
-                    trim = 1.0;                             // it's in the table now
-                    calNote = saveCal() ? String.format("SAVED %.0f in -> x%.2f", d, f) : "SAVE FAILED (file)";
-                    gamepad1.rumble(400);
-                } else calNote = "can't save: " + shotNote;
-            }
-            prevX = gamepad1.x;
+
+            // ================= SERVO TRES: manual only (dpad up / down above). no automatic angle =================
 
             // ================= TURRET (Teamalignment's turret code) =================
             boolean tagKnown = true;                        // the goal spot always exists here (field estimate until
@@ -436,9 +559,13 @@ public class red extends LinearOpMode {
                 error = -lastTx + lead;
                 if (LATENCY_COMP) error -= (turretRateDeg - ffDegPerS) * llLatencyMs / 1000.0;
                 source = "camera";
-            } else if (tagKnown) {
+            } else {
+                // can't see the tag -> odometry knows where the goal is: aim there right away (ALWAYS locked on)
                 double want = Math.toDegrees(Math.atan2(goalY - y, goalX - x) - heading) + lead;
-                error = wrapDeg(want - turretDeg);
+                double target = turretDeg + wrapDeg(want - turretDeg);              // shortest way...
+                if (target > TURRET_MAX_DEG && target - 360 >= TURRET_MIN_DEG) target -= 360;   // ...unless that hits a limit:
+                if (target < TURRET_MIN_DEG && target + 360 <= TURRET_MAX_DEG) target += 360;   //    then go the other way around
+                error = target - turretDeg;
                 source = goalFromCamera ? "odometry + encoder (camera spot)" : "odometry + encoder (field estimate)";
             }
 
@@ -446,37 +573,13 @@ public class red extends LinearOpMode {
             String turretState;
             boolean locked = false;
             boolean manualTurret = false;                   // dpad left/right runs servo uno + dos now
-            if (manualTurret) {
-                cmdDegPerS = MANUAL_DEG_PER_S;   // + = LEFT (counter-clockwise)
-                turretState = "MANUAL";
-            } else if (runaway) {
-                cmdDegPerS = 0;                       // safety stop bc it was turning AWAY from the tag
-                turretState = "STOPPED: TURRET RUNNING AWAY - flip TURRET_DIRECTION (or TX_SIGN)";
-            } else if (Double.isNaN(error)) {
-                // no tag yet: sweep back and forth till the Limelight spots it
-                if (turretDeg >= TURRET_MAX_DEG - 5) searchDir = -1;
-                if (turretDeg <= TURRET_MIN_DEG + 5) searchDir = 1;
-                cmdDegPerS = searchDir * SEARCH_DEG_PER_S + ffDegPerS;
-                turretState = "SEARCHING (sweeping for the tag)";
-            } else {
-                double correction = Math.abs(error) <= ON_TARGET_DEG ? KP * error * 0.5 : KP * error;
-                cmdDegPerS = correction + ffDegPerS;
-                locked = Math.abs(error) <= ON_TARGET_DEG;
-                turretState = (locked ? "LOCKED" : "TRACKING") + (tagInView ? "" : " (odometry)");
-            }
-            // runaway check: cam sees the tag, we turn toward it, but the error keeps getting BIGGER -> it's going the wrong way. stop ts
-            boolean manual = manualTurret;
-            if (!runaway && tagInView && !manual && Math.abs(error) > 8 && Math.abs(omegaDeg) < 90) {
-                if (Double.isNaN(runawayStartErr)) { runawayStartErr = Math.abs(error); runawayTimer.reset(); }
-                else if (runawayTimer.seconds() > RUNAWAY_CHECK_S) {
-                    if (Math.abs(error) > runawayStartErr + 8 && Math.abs(turretRateDeg) > 20
-                            && Math.signum(turretRateDeg) == Math.signum(error)) runaway = true;
-                    runawayStartErr = Math.abs(error); runawayTimer.reset();
-                }
-            } else if (Double.isNaN(error) || Math.abs(error) <= 8) {
-                runawayStartErr = Double.NaN;
-            }
-            if (manual) runaway = false;                    // nudging it by hand clears the stop
+            // ALWAYS tracking: camera when it sees the tag, odometry when it doesn't. no "running away" stop, no sweeping
+            // smooth: never faster than it can stop in (speed <= sqrt(2 x decel x degrees left)), gentle when close
+            double correction = Math.signum(error) * Math.min(KP * Math.abs(error),
+                    Math.sqrt(2 * TURRET_ACCEL_DEG_S2 * Math.abs(error)));
+            cmdDegPerS = correction + ffDegPerS;
+            locked = Math.abs(error) <= ON_TARGET_DEG;
+            turretState = (locked ? "LOCKED" : "TRACKING") + (tagInView ? " (camera)" : " (odometry - can't see the tag)");
 
             cmdDegPerS = Math.max(-MAX_TURRET_DEG_PER_S, Math.min(MAX_TURRET_DEG_PER_S, cmdDegPerS));
             boolean atLimit = false;
@@ -492,8 +595,10 @@ public class red extends LinearOpMode {
             if (ltDown && !prevLT) shooterOn = !shooterOn;
             prevLT = ltDown;
             boolean shooterActive = shooterOn;
-            double targetRpm = shotValid ? Math.min(SHOOTER_MAX_RPM, shotRpm + SHOOTER_RPM_BOOST)
+            double pollenRpm = shotValid ? Math.min(SHOOTER_MAX_RPM, shotRpm + SHOOTER_RPM_BOOST)
                     : (shotNote.startsWith("TOO FAR") ? SHOOTER_MAX_RPM : SHOOTER_IDLE_RPM + SHOOTER_RPM_BOOST);
+            double nectarRpm = Math.min(NECTAR_MAX_RPM, pollenRpm * nectarFactorAt(shotDistIn) * NECTAR_SPEED_TUNE + NECTAR_RPM_OFFSET);
+            double targetRpm = nectarShot ? nectarRpm : pollenRpm;  // speed for the ball that's NEXT at the shooter
             double rpm = Math.abs(outtake.getVelocity()) * 60.0 / SHOOTER_TICKS_PER_REV;
             if (shooterActive) {
                 double ff = targetRpm / SHOOTER_TOP_RPM_12V * 12.0 / Math.max(battery.getVoltage(), 9);
@@ -512,25 +617,17 @@ public class red extends LinearOpMode {
             boolean encoderDead = rpm < 100 && spinTimer.seconds() > 1.0;
             boolean speedOk = shooterActive && (atSpeedTimer.seconds() >= READY_HOLD_S
                     || (encoderDead && spinTimer.seconds() > SPINUP_MAX_S));
-            boolean ready = speedOk && shotValid && locked;
-
-            // ================= SERVO UNO + DOS (dpad right = +, dpad left = -, hold) =================
-            int unoCmd = gamepad1.dpad_right && !gamepad1.dpad_left ? 1 : gamepad1.dpad_left && !gamepad1.dpad_right ? -1 : 0;
-            if (unoCR != null) unoCR.setPower(unoCmd * UNO_CR_POWER);                     // let go = 0 = stays put
-            if (dosCR != null) dosCR.setPower(unoCmd * (UNO_CR_POWER + DOS_EXTRA));
-            if (unoCmd != 0) unoDosTouched = true;
-            if (unoDosTouched) {                            // normal servos: only once you've used them, then they HOLD
-                unoPos = Math.max(0, Math.min(1, unoPos + unoCmd * UNO_SPEED * dt));
-                dosPos = Math.max(0, Math.min(1, dosPos + unoCmd * (UNO_SPEED + DOS_EXTRA) * dt));
-                if (uno != null) uno.setPosition(unoPos);
-                if (dos != null) dos.setPosition(dosPos);
-            }
+            boolean ready = speedOk && shotValid && locked && !gapMoving;
 
             // ================= INTAKE / FEED =================
             // hold: right trigger IN, right bumper REVERSE (out), let go = stop
             int intakeMode = gamepad1.right_trigger > 0.2 ? 1 : gamepad1.right_bumper ? -1 : 0;   // RT in, RB reverse
             double intakePower;
             intakePower = intakeMode * INTAKE_POWER;                    // shooter keeps spinning while you intake
+            // pulling IN waits while the gap is moving, and (shooter on) up to 1 s for the speed to switch nectar <-> pollen
+            boolean speedSwitching = shooterActive && runClock.seconds() < speedWaitUntil && Math.abs(rpm - targetRpm) > 2 * RPM_TOLERANCE;
+            if (intakeMode == 1 && (gapMoving || speedSwitching)) intakePower = 0;
+            feedPower = intakePower;
             intake.setPower(intakePower);
 
             if (ready && !wasReady) gamepad1.rumble(200);
@@ -544,15 +641,23 @@ public class red extends LinearOpMode {
             telemetry.addData("CODE", "drive v5 turret t8 cells, shot cal, fast turret RED | LF %s  LB %s  RF %s  RB %s", LF_DIR, LB_DIR, RF_DIR, RB_DIR);
             telemetry.addData("FIRE", ready ? ">>> READY - hold RIGHT TRIGGER to feed <<<"
                     : (!shooterActive ? "press LEFT TRIGGER to turn the shooter on" : !shotValid ? shotNote : !locked ? "aiming..." : "speed settling..."));
-            telemetry.addData("uno + dos", (uno == null && unoCR == null) ? "no \"servo uno\" in config"
-                    : unoCR != null ? String.format("continuous | power uno %.2f dos %.2f (dpad L/R)", unoCmd * UNO_CR_POWER, unoCmd * (UNO_CR_POWER + DOS_EXTRA))
-                    : !unoDosTouched ? "not moved (dpad L/R to move)" : String.format("uno %.3f  dos %.3f (dpad L/R)", unoPos, dosPos));
+            telemetry.addData("Servo tres", tresTapped ? String.format("position %.3f (dpad up = increase, down = decrease)", tresPosNow)
+                    : "not moved yet (stays where it is) - dpad up / down to adjust");
+            StringBuilder q = new StringBuilder();
+            for (double[] b : line) q.append(b[0] == 1 ? "NECTAR " : b[0] == 0 ? "pollen " : "? ");
+            telemetry.addData("Ball", "sensor sees %s | next at shooter: %s | in line: %s", seenName,
+                    nectarShot ? "NECTAR" : "pollen", line.isEmpty() ? "none" : q.toString().trim());
+            telemetry.addData("Gap (uno + dos)", "%s %s | uno %.3f dos %.3f%s | hue %.0f colorful %.2f%s",
+                    nectarShot ? "NECTAR 76 deg" : "POLLEN 0 deg", gapMode.equals("AUTO") ? "(auto)" : "(forced: X = auto)", unoPos, dosPos,
+                    gapMoving ? " MOVING - intake waits" : "", hue, colorful, (uno == null || dos == null) ? " | !! servo uno/dos missing (or set as continuous)" : "");
+            telemetry.addData("Speed", "pollen %.0f / nectar %.0f RPM (x%.3f) -> using %s", pollenRpm, nectarRpm,
+                    nectarFactorAt(shotDistIn) * NECTAR_SPEED_TUNE, nectarShot ? "NECTAR" : "POLLEN");
             telemetry.addData("Shot", shotValid
                     ? String.format("dist %.0f in | need %.0f RPM | flight %.2f s | lead %.1f deg%s", shotDistIn, shotRpm, shotFlightS, shotLeadDeg,
                     shotNote.equals("ok") ? "" : " | " + shotNote.replace("ok, but ", ""))
                     : shotNote);
-            telemetry.addData("Shooter", "%s  %.0f / %.0f RPM (err %.0f)  Trim %.2f",
-                    shooterOn ? "ON (LT to stop)" : "OFF (LT to start)", rpm, targetRpm, rpm - targetRpm, trim);
+            telemetry.addData("Shooter", "%s  %.0f / %.0f RPM (err %.0f)",
+                    shooterOn ? "ON (LT to stop)" : "OFF (LT to start)", rpm, targetRpm, rpm - targetRpm);
             telemetry.addData("Tracking", "%s  (TRIANGLE to switch)", tagChoiceName());
             telemetry.addData("Turret", "%s%s", turretState, atLimit ? "  (AT SOFT LIMIT - turn the robot)" : "");
             telemetry.addData("  Turret angle", "%.1f deg (limits %.0f..%.0f)  speed %.0f deg/s, cmd %.0f",
@@ -575,9 +680,6 @@ public class red extends LinearOpMode {
             telemetry.addData("Field", "robot (%.1f, %.1f) facing %.0f deg | RED cell (%.0f, %.0f) | %.0f in away",
                     fx, fy, wrapDeg(START_FIELD_HEADING_DEG + Math.toDegrees(heading)), gfx, gfy, Math.hypot(gfx - fx, gfy - fy));
             telemetry.addData("Intake", intakeMode == 1 ? "IN (right trigger)" : intakeMode == -1 ? "OUT (right bumper)" : "OFF");
-            StringBuilder cs = new StringBuilder();
-            for (Map.Entry<Double, Double> e : cal.entrySet()) cs.append(String.format("%.0fin x%.2f  ", e.getKey(), e.getValue()));
-            telemetry.addData("Shot calibration", "%s | %s", cal.isEmpty() ? "none" : cs.toString().trim(), calNote);
             telemetry.addData("Battery", "%.2f V%s", volts, volts < 12.5 ? " - charge it" : "");
             telemetry.update();
         }
@@ -595,6 +697,7 @@ public class red extends LinearOpMode {
             double dx = CELL_FIELD_XY[c][0] - START_FIELD_X, dy = CELL_FIELD_XY[c][1] - START_FIELD_Y;
             cellX[c] =  Math.cos(sh) * dx + Math.sin(sh) * dy;
             cellY[c] = -Math.sin(sh) * dx + Math.cos(sh) * dy;
+            estX[c] = cellX[c]; estY[c] = cellY[c];
             cellFromCamera[c] = false;                   // odometry restarted -> camera has to find the spots again
         }
         goalX = cellX[activeCell]; goalY = cellY[activeCell];
@@ -697,7 +800,7 @@ public class red extends LinearOpMode {
                 : shotRpm >= SPEED_MAX_RPM - 0.5 ? String.format("at the %.0f RPM cap", SPEED_MAX_RPM) : "ok";
     }
 
-    /** shooter RPM for distance d: 3899 at 52 in, 2 RPM per inch, times your saved calibration + trim, max 3995 */
+    /** shooter RPM for distance d: 3384 at 52 in, 2 RPM per inch, times your saved calibration + trim, max 3420 */
     private double speedRule(double d, double trim) {
         double rpm = (SPEED_AT_52_RPM + RPM_PER_INCH * (d - 52)) * speedFactor(d) * trim;
         return Math.min(SPEED_MAX_RPM, rpm);
@@ -776,6 +879,68 @@ public class red extends LinearOpMode {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /** tres angle (deg) -> servo position. the START spot never moves; the turn goes the TRES_TURN_SIGN way from it */
+    private static double tresPos(double deg) {
+        return Math.max(0, Math.min(1, (TRES_START_DEG + TRES_TURN_SIGN * (deg - TRES_START_DEG)) / TRES_RANGE_DEG));
+    }
+
+    /** hue 0-360 + how colorful (0-1) from r g b */
+    private static double[] hueSat(double r, double g, double b) {
+        double mx = Math.max(r, Math.max(g, b)), mn = Math.min(r, Math.min(g, b)), d = mx - mn, h = 0;
+        if (d > 1e-9) { if (mx == r) h = 60 * (((g - b) / d) % 6); else if (mx == g) h = 60 * ((b - r) / d + 2); else h = 60 * ((r - g) / d + 4); }
+        if (h < 0) h += 360;
+        return new double[]{h, mx <= 1e-9 ? 0 : d / mx};
+    }
+
+    /** "RED" / "BLUE" (nectar), "YELLOW" (pollen) or "UNSURE" (gray, ball edge, between the bands) */
+    private static String classifyBall(double hue, double colorful) {
+        if (colorful < MIN_COLORFUL) return "UNSURE";
+        if (hue <= RED_HUE_MAX || hue >= RED_HUE_MIN_WRAP) return "RED";
+        if (hue >= POLLEN_HUE_MIN && hue <= POLLEN_HUE_MAX) return "YELLOW";
+        if (hue >= BLUE_HUE_MIN && hue < BLUE_HUE_MAX) return "BLUE";
+        return "UNSURE";
+    }
+
+    /** nectar RPM / pollen RPM at distance d (inches), from the table built at INIT */
+    private static double nectarFactorAt(double d) {
+        int i = (int) Math.max(0, Math.min(nectarFactor.length - 2, Math.floor(d)));
+        double f = Math.max(0, Math.min(1, d - i));
+        return nectarFactor[i] + f * (nectarFactor[i + 1] - nectarFactor[i]);
+    }
+
+    /**
+     * NECTAR SHOT MATH (once at INIT): for each distance, the launch speed each ball needs at LAUNCH_DEG to reach the goal
+     * (with AIR DRAG: drag slows a ball by area / weight, so size + weight both matter; nectar also leaves 0.4 in higher,
+     * its center sits higher), then the FLYWHEEL part: launching a heavier ball takes more energy out of the wheel, so the
+     * wheel must start a bit faster (energy: wheel loses 1/2 x 7/5 x mass x v^2). result = how much faster / slower than the
+     * pollen RPM (which you measured) the nectar RPM has to be.
+     */
+    private static void buildNectarFactor() {
+        for (int d = 0; d < nectarFactor.length; d++) {
+            double dd = Math.max(20, d);
+            double vp = launchWithDrag(dd, POLLEN_DIAM_IN, POLLEN_WEIGHT_G, SHOOTER_EXIT_HEIGHT_IN);
+            double vn = launchWithDrag(dd, NECTAR_DIAM_IN, NECTAR_WEIGHT_G, SHOOTER_EXIT_HEIGHT_IN + (NECTAR_DIAM_IN - POLLEN_DIAM_IN) / 2);
+            double wheelRadS = (SPEED_AT_52_RPM + RPM_PER_INCH * (dd - 52)) * 2 * Math.PI / 60;    // pollen wheel speed here
+            double ep = Math.sqrt(1 + 1.4 * POLLEN_WEIGHT_G / 1000 * vp * vp / (FLYWHEEL_INERTIA_KGM2 * wheelRadS * wheelRadS));
+            double en = Math.sqrt(1 + 1.4 * NECTAR_WEIGHT_G / 1000 * vn * vn / (FLYWHEEL_INERTIA_KGM2 * wheelRadS * wheelRadS));
+            nectarFactor[d] = (vn / vp) * (en / ep);
+        }
+    }
+
+    /** launch speed (m/s) at LAUNCH_DEG so a ball (diameter in, weight g) with air drag reaches goal height d inches away */
+    private static double launchWithDrag(double dIn, double diamIn, double grams, double exitIn) {
+        double d = dIn * 0.0254, r = diamIn * 0.0254 / 2, m = grams / 1000.0;
+        double k = 1.2 * 0.5 * Math.PI * r * r / (2 * m);   // air density 1.2, sphere drag coefficient 0.5
+        double th = Math.toRadians(LAUNCH_DEG), h0 = exitIn * 0.0254, hg = GOAL_HEIGHT_IN * 0.0254;
+        double lo = 1, hi = 20;
+        for (int it = 0; it < 40; it++) {
+            double v = (lo + hi) / 2, x = 0, y = h0, vx = v * Math.cos(th), vy = v * Math.sin(th), dt = 0.001;
+            while (x < d && y > -1) { double sp = Math.hypot(vx, vy); vx += -k * sp * vx * dt; vy += (-9.81 - k * sp * vy) * dt; x += vx * dt; y += vy * dt; }
+            if (y < hg) lo = v; else hi = v;
+        }
+        return (lo + hi) / 2;
     }
 
     private static double deadband(double v) { return Math.abs(v) < STICK_DEADBAND ? 0 : v; }
